@@ -75,3 +75,4 @@ export async function me(req: Request, res: Response) {
 }
 
 export default { login, refresh, logout, me };
+
