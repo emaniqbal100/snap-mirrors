@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { loginAdmin, refreshAccessToken, logoutAdmin, AuthError } from '../auth.services.js';
+import { loginAdmin, refreshAccessToken, logoutAdmin, AuthError } from '../services/auth.services.js';
 import { findUserById } from '../models/User.js';
 import { sendSuccess, sendUnauthorized, sendValidationError, sendServerError } from '../utils/response.js';
 import { validateEmail } from '../utils/helpers.js';
