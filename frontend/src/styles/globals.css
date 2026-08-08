@@ -13,13 +13,12 @@ html {
 }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
   background-color: #ffffff;
   color: #1a1a1a;
   line-height: 1.6;
 }
 
-/* Buttons */
 .btn {
   @apply px-4 py-2 rounded-lg font-semibold transition-all duration-300;
 }
@@ -32,22 +31,10 @@ body {
   @apply btn bg-gray-200 text-gray-800 hover:bg-gray-300;
 }
 
-/* Cards */
 .card {
   @apply bg-white rounded-lg shadow-md p-4 transition-shadow duration-300 hover:shadow-lg;
 }
 
-/* Container */
 .container-custom {
   @apply max-w-7xl mx-auto px-4;
-}
-
-/* Loading */
-.loading {
-  @apply animate-pulse;
-}
-
-/* Text utilities */
-.text-center-all {
-  @apply flex items-center justify-center;
 }
