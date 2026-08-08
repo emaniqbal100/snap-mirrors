@@ -38,5 +38,18 @@ export async function createUser(data: {
   );
   return result.rows[0];
 }
+export async function findAllAdmins(): Promise<User[]> {
+  const result = await query(
+    `SELECT id, name, email, role, is_active, created_at FROM users WHERE role = 'admin' ORDER BY created_at DESC`
+  );
+  return result.rows;
+}
 
-export default { findUserByEmail, findUserById, createUser };
+export async function updateUserActiveStatus(id: number, isActive: boolean): Promise<User | null> {
+  const result = await query(
+    `UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 RETURNING id, name, email, role, is_active`,
+    [isActive, id]
+  );
+  return result.rows[0] || null;
+}
+export default { findUserByEmail, findUserById, createUser, findAllAdmins, updateUserActiveStatus };

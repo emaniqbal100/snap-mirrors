@@ -15,16 +15,19 @@ export function generateTransactionId(): string {
 
 // Hash password (using bcryptjs)
 export async function hashPassword(password: string): Promise<string> {
-  const bcrypt = await import('bcryptjs');
+  const bcryptModule = await import('bcryptjs');
+  const bcrypt = bcryptModule.default ?? bcryptModule;
   const salt = await bcrypt.genSalt(10);
   return bcrypt.hash(password, salt);
 }
 
 // Compare password
 export async function comparePassword(password: string, hash: string): Promise<boolean> {
-  const bcrypt = await import('bcryptjs');
+  const bcryptModule = await import('bcryptjs');
+  const bcrypt = bcryptModule.default ?? bcryptModule;
   return bcrypt.compare(password, hash);
 }
+
 
 // Format currency
 export function formatCurrency(amount: number, currency: string = 'PKR'): string {

@@ -17,21 +17,22 @@ declare global {
 }
 
 // Verify JWT token
-export function authMiddleware(req: Request, res: Response, next: NextFunction) {
+export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   try {
     // Get token from header
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      sendUnauthorized(res, 'Missing authorization token')
-      return ;
+      sendUnauthorized(res, 'Missing authorization token');
+      return;
     }
 
     const token = authHeader.substring(7); // Remove "Bearer " prefix
-    
+
     // Verify token
     const decoded = verifyAccessToken(token);
     if (!decoded) {
-      return sendUnauthorized(res, 'Invalid or expired token');
+      sendUnauthorized(res, 'Invalid or expired token');
+      return;
     }
 
     // Attach user to request
@@ -43,41 +44,47 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     req.token = token;
 
     next();
+    return;
   } catch (error) {
-    return sendUnauthorized(res, 'Authentication failed');
+    sendUnauthorized(res, 'Authentication failed');
+    return;
   }
 }
 
 // Verify admin role
-export function adminMiddleware(req: Request, res: Response, next: NextFunction) {
+export function adminMiddleware(req: Request, res: Response, next: NextFunction): void {
   if (!req.user) {
-    sendUnauthorized(res, 'User not authenticated')
-    return ;
+    sendUnauthorized(res, 'User not authenticated');
+    return;
   }
 
   if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-    return sendForbidden(res, 'Admin access required');
+    sendForbidden(res, 'Admin access required');
+    return;
   }
 
   next();
+  return;
 }
 
 // Verify superadmin role
-export function superadminMiddleware(req: Request, res: Response, next: NextFunction) {
+export function superadminMiddleware(req: Request, res: Response, next: NextFunction): void {
   if (!req.user) {
-    sendUnauthorized(res, 'User not authenticated')
+    sendUnauthorized(res, 'User not authenticated');
     return;
   }
 
   if (req.user.role !== 'superadmin') {
-    return sendForbidden(res, 'Superadmin access required');
+    sendForbidden(res, 'Superadmin access required');
+    return;
   }
 
   next();
+  return;
 }
 
 // Optional auth - doesn't fail if no token
-export function optionalAuthMiddleware(req: Request, res: Response, next: NextFunction) {
+export function optionalAuthMiddleware(req: Request, res: Response, next: NextFunction): void {
   try {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -93,8 +100,10 @@ export function optionalAuthMiddleware(req: Request, res: Response, next: NextFu
       }
     }
     next();
+    return;
   } catch (error) {
     next(); // Continue even if auth fails
+    return;
   }
 }
 
