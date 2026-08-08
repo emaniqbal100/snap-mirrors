@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { config } from '../config/env.js';
 import {
   findAllProducts,
   findProductById,
@@ -18,6 +19,7 @@ import {
   sendNotFound,
   sendServerError,
 } from '../utils/response.js';
+
 
 // GET /api/products (public - only active products)
 export async function listProductsPublic(req: Request, res: Response) {
@@ -68,13 +70,22 @@ export async function getProductById(req: Request, res: Response) {
 }
 
 // POST /api/admin/products
-// body: { name, description, base_price, category_id, images, variants: [{size, color, sku, price, stock_quantity}] }
+// body: { name, description, base_price, category_id, variants: [{size, color, sku, price, stock_quantity}] }
+// file: image (multipart/form-data)
 export async function createProduct(req: Request, res: Response) {
   try {
-    const { name, description, base_price, category_id, images, variants } = req.body;
+    const { name, description, base_price, category_id, variants } = req.body;
 
     if (!name || base_price === undefined) {
       return sendValidationError(res, 'Name and base_price are required');
+    }
+
+    // Handle image upload
+    let images: string[] | undefined = undefined;
+    if (req.file) {
+      // Store uploaded image path as array
+      const imageUrl = `${config.BASE_URL}/uploads/${req.file.filename}`;
+      images = [imageUrl];
     }
 
     const slug = slugify(name);
@@ -115,12 +126,13 @@ export async function createProduct(req: Request, res: Response) {
 }
 
 // PATCH /api/admin/products/:id
-// body: { name?, description?, base_price?, category_id?, images?, is_active?, variants?: [{id?, size, color, sku, price, stock_quantity}] }
+// body: { name?, description?, base_price?, category_id?, is_active?, variants?: [{id?, size, color, sku, price, stock_quantity}] }
+// file: image (multipart/form-data - optional)
 export async function updateProduct(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const productId = parseInt(id, 10);
-    const { name, description, base_price, category_id, images, is_active, variants } = req.body;
+    const { name, description, base_price, category_id, is_active, variants } = req.body;
 
     const existing = await findProductById(productId);
     if (!existing) {
@@ -129,13 +141,20 @@ export async function updateProduct(req: Request, res: Response) {
 
     const slug = name ? slugify(name) : undefined;
 
+    // Handle image upload - only update if new image provided
+    let images: string[] | undefined = undefined;
+    if (req.file) {
+      const imageUrl = `${process.env.BASE_URL || 'http://localhost:5000'}/uploads/${req.file.filename}`;
+      images = [imageUrl];
+    }
+
     const updated = await updateProductModel(productId, {
       name,
       slug,
       description,
       base_price,
       category_id,
-      images,
+      images, // Will be undefined if no new image, so won't update
       is_active,
     });
 
