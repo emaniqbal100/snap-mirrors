@@ -10,7 +10,7 @@ import { sendServerError, sendNotFound } from './utils/response.js';
 // Route imports
 import authRoutes from './routes/auth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
-import productsRoutes from './routes/product.js';
+import productsRoutes from './routes/products.public.routes.js';
 import ordersRoutes from './routes/order.js';
 import categoryRoutes from './routes/category.routes.js';
 
