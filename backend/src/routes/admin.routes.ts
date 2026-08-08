@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listAdmins, createAdmin, toggleAdminStatus } from '../controllers/admin.controllers.js';
+import { listAdmins, createAdmin, toggleAdminStatus } from '../controllers/admin.controller.js';
 import {
   listCategories,
   createCategory,
