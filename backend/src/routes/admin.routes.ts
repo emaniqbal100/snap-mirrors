@@ -6,6 +6,13 @@ import {
   updateCategory,
   deleteCategory,
 } from '../controllers/category.controller.js';
+import {
+  listProductsAdmin,
+  getProductById,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+} from '../controllers/product.controller.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
 
 const router = Router();
@@ -23,5 +30,12 @@ router.get('/categories', listCategories);
 router.post('/categories', createCategory);
 router.patch('/categories/:id', updateCategory);
 router.delete('/categories/:id', deleteCategory);
+
+// Products
+router.get('/products', listProductsAdmin);
+router.get('/products/:id', getProductById);
+router.post('/products', createProduct);
+router.patch('/products/:id', updateProduct);
+router.delete('/products/:id', deleteProduct);
 
 export default router;
