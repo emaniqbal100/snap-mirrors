@@ -14,6 +14,7 @@ import {
   deleteProduct,
 } from '../controllers/product.controller.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
+import { upload } from '../middleware/upload.js';  // 👈 ADD THIS
 
 const router = Router();
 
@@ -34,8 +35,8 @@ router.delete('/categories/:id', deleteCategory);
 // Products
 router.get('/products', listProductsAdmin);
 router.get('/products/:id', getProductById);
-router.post('/products', createProduct);
-router.patch('/products/:id', updateProduct);
+router.post('/products', upload.single('image'), createProduct);  // 👈 ADD upload
+router.patch('/products/:id', upload.single('image'), updateProduct);  // 👈 ADD upload
 router.delete('/products/:id', deleteProduct);
 
 export default router;
