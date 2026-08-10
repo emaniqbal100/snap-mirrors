@@ -13,8 +13,30 @@ import {
   updateProduct,
   deleteProduct,
 } from '../controllers/product.controller.js';
+import {
+  listOrdersAdmin,
+  getOrderAdmin,
+  updateOrderStatus,
+  deleteOrder,
+} from '../controllers/orders.controller.js';
+import {
+  listPaymentsAdmin,
+  getPaymentAdmin,
+  initiatePayment,
+  verifyPayment,
+  deletePayment,
+} from '../controllers/payment.controller.js';
+import {
+  listReviewsAdmin,
+  getReviewAdmin,
+  createReview,
+  updateReview,
+  toggleReviewStatus,
+  toggleFeaturedStatus,
+  deleteReview,
+} from '../controllers/review.controller.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
-import { upload } from '../middleware/upload.js';  // 👈 ADD THIS
+import { upload } from '../middleware/upload.js';
 
 const router = Router();
 
@@ -35,8 +57,30 @@ router.delete('/categories/:id', deleteCategory);
 // Products
 router.get('/products', listProductsAdmin);
 router.get('/products/:id', getProductById);
-router.post('/products', upload.single('image'), createProduct);  // 👈 ADD upload
-router.patch('/products/:id', upload.single('image'), updateProduct);  // 👈 ADD upload
+router.post('/products', upload.single('image'), createProduct);
+router.patch('/products/:id', upload.single('image'), updateProduct);
 router.delete('/products/:id', deleteProduct);
+
+// Orders
+router.get('/orders', listOrdersAdmin);
+router.get('/orders/:id', getOrderAdmin);
+router.patch('/orders/:id/status', updateOrderStatus);
+router.delete('/orders/:id', deleteOrder);
+
+// Payments
+router.get('/payments', listPaymentsAdmin);
+router.get('/payments/:id', getPaymentAdmin);
+router.post('/payments/initiate', initiatePayment);
+router.patch('/payments/:id/verify', verifyPayment);
+router.delete('/payments/:id', deletePayment);
+
+// Reviews
+router.get('/reviews', listReviewsAdmin);
+router.get('/reviews/:id', getReviewAdmin);
+router.post('/reviews', createReview);
+router.patch('/reviews/:id', updateReview);
+router.patch('/reviews/:id/toggle', toggleReviewStatus);
+router.patch('/reviews/:id/featured', toggleFeaturedStatus);
+router.delete('/reviews/:id', deleteReview);
 
 export default router;
