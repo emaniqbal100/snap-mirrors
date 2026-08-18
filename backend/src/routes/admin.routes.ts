@@ -31,8 +31,6 @@ import {
   getReviewAdmin,
   createReview,
   updateReview,
-  toggleReviewStatus,
-  toggleFeaturedStatus,
   deleteReview,
 } from '../controllers/review.controller.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
@@ -79,8 +77,8 @@ router.get('/reviews', listReviewsAdmin);
 router.get('/reviews/:id', getReviewAdmin);
 router.post('/reviews', createReview);
 router.patch('/reviews/:id', updateReview);
-router.patch('/reviews/:id/toggle', toggleReviewStatus);
-router.patch('/reviews/:id/featured', toggleFeaturedStatus);
+// router.patch('/reviews/:id/toggle', toggleReviewStatus);
+// router.patch('/reviews/:id/featured', toggleFeaturedStatus);
 router.delete('/reviews/:id', deleteReview);
 
 export default router;

@@ -11,10 +11,9 @@ import { query } from '../config/database.js';
 export async function listPaymentsAdmin(req: Request, res: Response) {
   try {
     const result = await query(
-      `SELECT p.*, o.order_number, o.customer_name, pm.method_name
+      `SELECT p.*, o.id as order_id
        FROM payments p
        JOIN orders o ON p.order_id = o.id
-       JOIN payment_methods pm ON p.payment_method_id = pm.id
        ORDER BY p.created_at DESC`
     );
     return sendSuccess(res, result.rows, 'Payments fetched successfully');
@@ -28,10 +27,9 @@ export async function getPaymentAdmin(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const result = await query(
-      `SELECT p.*, o.order_number, o.customer_name, pm.method_name
+      `SELECT p.*, o.id as order_id
        FROM payments p
        JOIN orders o ON p.order_id = o.id
-       JOIN payment_methods pm ON p.payment_method_id = pm.id
        WHERE p.id = $1`,
       [id]
     );
@@ -49,17 +47,23 @@ export async function getPaymentAdmin(req: Request, res: Response) {
 // Initiate payment (customer or admin)
 export async function initiatePayment(req: Request, res: Response) {
   try {
-    const { order_id, payment_method_id, amount } = req.body;
+    const { order_id, method, amount } = req.body;
 
-    if (!order_id || !payment_method_id || !amount) {
-      return sendValidationError(res, 'Order ID, payment method, and amount required');
+    if (!order_id || !method || !amount) {
+      return sendValidationError(res, 'Order ID, method, and amount required');
+    }
+
+    // Validate method
+    const validMethods = ['online', 'cod'];
+    if (!validMethods.includes(method)) {
+      return sendValidationError(res, `Method must be one of: ${validMethods.join(', ')}`);
     }
 
     const result = await query(
-      `INSERT INTO payments (order_id, payment_method_id, amount, status)
+      `INSERT INTO payments (order_id, method, amount, status)
        VALUES ($1, $2, $3, 'pending')
        RETURNING *`,
-      [order_id, payment_method_id, amount]
+      [order_id, method, amount]
     );
 
     return sendSuccess(res, result.rows[0], 'Payment initiated successfully', 201);
@@ -72,33 +76,30 @@ export async function initiatePayment(req: Request, res: Response) {
 export async function verifyPayment(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const { status, transaction_id, notes } = req.body;
+    const { status, transaction_id } = req.body;
 
     if (!status) {
       return sendValidationError(res, 'Status is required');
     }
 
+    // Validate status
+    const validStatuses = ['pending', 'paid', 'failed', 'refunded'];
+    if (!validStatuses.includes(status)) {
+      return sendValidationError(res, `Status must be one of: ${validStatuses.join(', ')}`);
+    }
+
     const result = await query(
       `UPDATE payments 
        SET status = $1, 
-           transaction_id = $2, 
-           notes = $3,
-           verified_at = CURRENT_TIMESTAMP
-       WHERE id = $4 
+           transaction_id = $2,
+           paid_at = CURRENT_TIMESTAMP
+       WHERE id = $3 
        RETURNING *`,
-      [status, transaction_id || null, notes || null, id]
+      [status, transaction_id || null, id]
     );
 
     if (result.rows.length === 0) {
       return sendNotFound(res, 'Payment not found');
-    }
-
-    // Update order payment status
-    if (status === 'completed') {
-      await query(
-        'UPDATE orders SET payment_status = $1 WHERE id = $2',
-        ['completed', result.rows[0].order_id]
-      );
     }
 
     return sendSuccess(res, result.rows[0], 'Payment verified successfully');

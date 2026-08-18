@@ -1,0 +1,5 @@
+name: Globals
+values:
+  - key: bearer
+    value: ''
+    enabled: true

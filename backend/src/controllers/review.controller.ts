@@ -22,14 +22,13 @@ export async function listReviewsAdmin(req: Request, res: Response) {
   }
 }
 
-// GET reviews for public (only published)
+// GET reviews for public
 export async function listReviewsPublic(req: Request, res: Response) {
   try {
     const result = await query(
       `SELECT r.*, p.name as product_name
        FROM reviews r
        LEFT JOIN products p ON r.product_id = p.id
-       WHERE r.is_published = true
        ORDER BY r.created_at DESC`
     );
     return sendSuccess(res, result.rows, 'Reviews fetched successfully');
@@ -60,20 +59,24 @@ export async function getReviewAdmin(req: Request, res: Response) {
   }
 }
 
-// CREATE review (customer or admin)
+// CREATE review
 export async function createReview(req: Request, res: Response) {
   try {
-    const { product_id, customer_name, rating, content, is_published } = req.body;
+    const { product_id, user_id, rating, comment } = req.body;
 
-    if (!product_id || !customer_name || !rating || !content) {
-      return sendValidationError(res, 'Product, name, rating, and content required');
+    if (!product_id || !user_id || !rating || !comment) {
+      return sendValidationError(res, 'Product ID, user ID, rating, and comment required');
+    }
+
+    if (rating < 1 || rating > 5) {
+      return sendValidationError(res, 'Rating must be between 1 and 5');
     }
 
     const result = await query(
-      `INSERT INTO reviews (product_id, customer_name, rating, content, is_published)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO reviews (product_id, user_id, rating, comment)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [product_id, customer_name, rating, content, is_published || false]
+      [product_id, user_id, rating, comment]
     );
 
     return sendSuccess(res, result.rows[0], 'Review created successfully', 201);
@@ -82,11 +85,11 @@ export async function createReview(req: Request, res: Response) {
   }
 }
 
-// UPDATE review (admin)
+// UPDATE review
 export async function updateReview(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const { rating, content, is_published, is_featured } = req.body;
+    const { rating, comment } = req.body;
 
     const existing = await query('SELECT * FROM reviews WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
@@ -96,14 +99,10 @@ export async function updateReview(req: Request, res: Response) {
     const result = await query(
       `UPDATE reviews 
        SET rating = COALESCE($1, rating),
-           content = COALESCE($2, content),
-           is_published = COALESCE($3, is_published),
-           is_featured = COALESCE($4, is_featured),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5 
+           comment = COALESCE($2, comment)
+       WHERE id = $3 
        RETURNING *`,
-      [rating || null, content || null, is_published !== undefined ? is_published : null, 
-       is_featured !== undefined ? is_featured : null, id]
+      [rating || null, comment || null, id]
     );
 
     return sendSuccess(res, result.rows[0], 'Review updated successfully');
@@ -112,61 +111,7 @@ export async function updateReview(req: Request, res: Response) {
   }
 }
 
-// TOGGLE published status (admin)
-export async function toggleReviewStatus(req: Request, res: Response) {
-  try {
-    const { id } = req.params;
-
-    const existing = await query('SELECT * FROM reviews WHERE id = $1', [id]);
-    if (existing.rows.length === 0) {
-      return sendNotFound(res, 'Review not found');
-    }
-
-    const newStatus = !existing.rows[0].is_published;
-
-    const result = await query(
-      `UPDATE reviews 
-       SET is_published = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2 
-       RETURNING *`,
-      [newStatus, id]
-    );
-
-    return sendSuccess(res, result.rows[0], 
-      `Review ${newStatus ? 'published' : 'unpublished'} successfully`);
-  } catch (error) {
-    return sendServerError(res, 'Failed to toggle review status', error);
-  }
-}
-
-// TOGGLE featured status (admin)
-export async function toggleFeaturedStatus(req: Request, res: Response) {
-  try {
-    const { id } = req.params;
-
-    const existing = await query('SELECT * FROM reviews WHERE id = $1', [id]);
-    if (existing.rows.length === 0) {
-      return sendNotFound(res, 'Review not found');
-    }
-
-    const newStatus = !existing.rows[0].is_featured;
-
-    const result = await query(
-      `UPDATE reviews 
-       SET is_featured = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2 
-       RETURNING *`,
-      [newStatus, id]
-    );
-
-    return sendSuccess(res, result.rows[0], 
-      `Review ${newStatus ? 'featured' : 'unfeatured'} successfully`);
-  } catch (error) {
-    return sendServerError(res, 'Failed to toggle featured status', error);
-  }
-}
-
-// DELETE review (admin)
+// DELETE review
 export async function deleteReview(req: Request, res: Response) {
   try {
     const { id } = req.params;
@@ -190,7 +135,5 @@ export default {
   getReviewAdmin,
   createReview,
   updateReview,
-  toggleReviewStatus,
-  toggleFeaturedStatus,
   deleteReview,
 };
