@@ -8,8 +8,6 @@ import {
   updateProduct as updateProductModel,
   deleteProduct as deleteProductModel,
   createVariant,
-  updateVariant as updateVariantModel,
-  deleteVariant as deleteVariantModel,
   deleteVariantsByProductId,
 } from '../models/Product.js';
 import { slugify } from '../utils/helpers.js';
@@ -20,6 +18,9 @@ import {
   sendServerError,
 } from '../utils/response.js';
 
+// ============================================
+// PUBLIC
+// ============================================
 
 // GET /api/products (public - only active products)
 export async function listProductsPublic(req: Request, res: Response) {
@@ -44,6 +45,10 @@ export async function getProductBySlug(req: Request, res: Response) {
     return sendServerError(res, 'Failed to fetch product', error);
   }
 }
+
+// ============================================
+// ADMIN
+// ============================================
 
 // GET /api/admin/products (admin - all products including inactive)
 export async function listProductsAdmin(req: Request, res: Response) {
@@ -71,7 +76,7 @@ export async function getProductById(req: Request, res: Response) {
 
 // POST /api/admin/products
 // body: { name, description, base_price, category_id, variants: [{size, color, sku, price, stock_quantity}] }
-// file: image (multipart/form-data)
+// file: image (multipart/form-data, optional)
 export async function createProduct(req: Request, res: Response) {
   try {
     const { name, description, base_price, category_id, variants } = req.body;
@@ -83,7 +88,6 @@ export async function createProduct(req: Request, res: Response) {
     // Handle image upload
     let images: string[] | undefined = undefined;
     if (req.file) {
-      // Store uploaded image path as array
       const imageUrl = `${config.BASE_URL}/uploads/${req.file.filename}`;
       images = [imageUrl];
     }
@@ -100,8 +104,17 @@ export async function createProduct(req: Request, res: Response) {
     });
 
     const createdVariants = [];
-    if (Array.isArray(variants) && variants.length > 0) {
-      for (const v of variants) {
+    let parsedVariants = variants;
+    if (typeof variants === 'string') {
+      try {
+        parsedVariants = JSON.parse(variants);
+      } catch {
+        parsedVariants = [];
+      }
+    }
+
+    if (Array.isArray(parsedVariants) && parsedVariants.length > 0) {
+      for (const v of parsedVariants) {
         const variant = await createVariant({
           product_id: product.id,
           sku: v.sku,
@@ -126,8 +139,8 @@ export async function createProduct(req: Request, res: Response) {
 }
 
 // PATCH /api/admin/products/:id
-// body: { name?, description?, base_price?, category_id?, is_active?, variants?: [{id?, size, color, sku, price, stock_quantity}] }
-// file: image (multipart/form-data - optional)
+// body: { name?, description?, base_price?, category_id?, is_active?, variants?: [{size, color, sku, price, stock_quantity}] }
+// file: image (multipart/form-data, optional)
 export async function updateProduct(req: Request, res: Response) {
   try {
     const { id } = req.params;
@@ -144,7 +157,7 @@ export async function updateProduct(req: Request, res: Response) {
     // Handle image upload - only update if new image provided
     let images: string[] | undefined = undefined;
     if (req.file) {
-      const imageUrl = `${process.env.BASE_URL || 'http://localhost:5000'}/uploads/${req.file.filename}`;
+      const imageUrl = `${config.BASE_URL}/uploads/${req.file.filename}`;
       images = [imageUrl];
     }
 
@@ -154,14 +167,22 @@ export async function updateProduct(req: Request, res: Response) {
       description,
       base_price,
       category_id,
-      images, // Will be undefined if no new image, so won't update
+      images,
       is_active,
     });
 
-    // If variants array provided, replace all variants
-    if (Array.isArray(variants)) {
+    let parsedVariants = variants;
+    if (typeof variants === 'string') {
+      try {
+        parsedVariants = JSON.parse(variants);
+      } catch {
+        parsedVariants = undefined;
+      }
+    }
+
+    if (Array.isArray(parsedVariants)) {
       await deleteVariantsByProductId(productId);
-      for (const v of variants) {
+      for (const v of parsedVariants) {
         await createVariant({
           product_id: productId,
           sku: v.sku,

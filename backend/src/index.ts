@@ -11,20 +11,14 @@ import { sendServerError, sendNotFound } from './utils/response.js';
 import authRoutes from './routes/auth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import productsRoutes from './routes/products.public.routes.js';
-import ordersRoutes from './routes/order.js';
+import ordersRoutes from './routes/orders.route.js';
 import categoryRoutes from './routes/category.routes.js';
 
-// Create Express app
 const app: Express = express();
+app.set('trust proxy', 1);
 
-// ============================================
-// MIDDLEWARE SETUP
-// ============================================
-
-// Security middleware
 app.use(helmet());
 
-// CORS
 app.use(
   cors({
     origin: config.CORS_ORIGIN,
@@ -33,21 +27,19 @@ app.use(
   })
 );
 
-// Body parser middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-app.use('/uploads', express.static('uploads'));
-// Logging middleware
 app.use(morgan('combined'));
 
-// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: 'Too many requests from this IP',
 });
 app.use('/api/', limiter);
+
+app.use('/uploads', express.static('uploads'));
 
 // ============================================
 // ROUTES
@@ -59,7 +51,6 @@ app.use('/api/products', productsRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/categories', categoryRoutes);
 
-// Health check
 app.get('/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
@@ -68,12 +59,11 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
-// API Info
 app.get('/api', (req: Request, res: Response) => {
   res.json({
     name: "Snap's Mirror API",
     version: '1.0.0',
-    baseUrl: `http://localhost:${config.PORT}/api`,
+    baseUrl: `${config.BASE_URL}/api`,
     endpoints: {
       auth: '/api/auth',
       products: '/api/products',
@@ -90,12 +80,10 @@ app.get('/api', (req: Request, res: Response) => {
 // ERROR HANDLING
 // ============================================
 
-// 404 handler
 app.use((req: Request, res: Response) => {
   sendNotFound(res, `Route ${req.method} ${req.path} not found`);
 });
 
-// Global error handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('Unhandled error:', err);
   sendServerError(res, 'Internal server error', err);
@@ -107,14 +95,12 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 
 async function startServer() {
   try {
-    // Test database connection
     const dbConnected = await testConnection();
     if (!dbConnected) {
       console.error('❌ Failed to connect to database. Exiting...');
       process.exit(1);
     }
 
-    // Start server
     app.listen(config.PORT, () => {
       console.log(`
 ╔════════════════════════════════════════╗
@@ -123,7 +109,7 @@ async function startServer() {
 ║  🚀 Server running on port ${config.PORT}
 ║  🌍 Environment: ${config.NODE_ENV}
 ║  📊 Database: Connected
-║  📍 API Base: http://localhost:${config.PORT}/api
+║  📍 API Base: ${config.BASE_URL}/api
 ╚════════════════════════════════════════╝
       `);
     });
@@ -133,7 +119,6 @@ async function startServer() {
   }
 }
 
-// Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received. Shutting down gracefully...');
   await closePool();
@@ -146,7 +131,6 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-// Start the server
 startServer();
 
 export default app;
