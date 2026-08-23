@@ -40,27 +40,27 @@ export const config = {
     ADMIN_EMAIL: process.env.ADMIN_EMAIL!,
   },
 
-//   // Payment Gateways
-//   JAZZCASH: {
-//     ENABLED: process.env.JAZZCASH_ENABLED === 'true',
-//     MERCHANT_ID: process.env.JAZZCASH_MERCHANT_ID,
-//     PASSWORD: process.env.JAZZCASH_PASSWORD,
-//     ACCOUNT: process.env.JAZZCASH_ACCOUNT_NUMBER || '03244612168',
-//   },
+  // Payment Gateways
+  JAZZCASH: {
+    ENABLED: process.env.JAZZCASH_ENABLED === 'true',
+    MERCHANT_ID: process.env.JAZZCASH_MERCHANT_ID,
+    PASSWORD: process.env.JAZZCASH_PASSWORD,
+    ACCOUNT: process.env.JAZZCASH_ACCOUNT_NUMBER || '03244612168',
+  },
 
-//   EASYPAISA: {
-//     ENABLED: process.env.EASYPAISA_ENABLED === 'true',
-//     MERCHANT_ID: process.env.EASYPAISA_MERCHANT_ID,
-//     PASSWORD: process.env.EASYPAISA_PASSWORD,
-//     ACCOUNT: process.env.EASYPAISA_ACCOUNT_NUMBER || '03141016293',
-//   },
+  EASYPAISA: {
+    ENABLED: process.env.EASYPAISA_ENABLED === 'true',
+    MERCHANT_ID: process.env.EASYPAISA_MERCHANT_ID,
+    PASSWORD: process.env.EASYPAISA_PASSWORD,
+    ACCOUNT: process.env.EASYPAISA_ACCOUNT_NUMBER || '03141016293',
+  },
 
-//   BANK_TRANSFER: {
-//     ENABLED: process.env.BANK_TRANSFER_ENABLED === 'true',
-//     BANK_NAME: process.env.BANK_NAME || 'JS Bank',
-//     ACCOUNT_NUMBER: process.env.BANK_ACCOUNT_NUMBER || '03244612168',
-//     ACCOUNT_HOLDER: process.env.BANK_ACCOUNT_HOLDER || 'Snap Mirror',
-//   },
+  BANK_TRANSFER: {
+    ENABLED: process.env.BANK_TRANSFER_ENABLED === 'true',
+    BANK_NAME: process.env.BANK_NAME || 'JS Bank',
+    ACCOUNT_NUMBER: process.env.BANK_ACCOUNT_NUMBER || '03244612168',
+    ACCOUNT_HOLDER: process.env.BANK_ACCOUNT_HOLDER || 'Snap Mirror',
+  },
 
   // File Upload
   MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE || '5242880', 10),

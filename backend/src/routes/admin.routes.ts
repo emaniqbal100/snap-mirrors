@@ -19,6 +19,19 @@ import {
   updateOrderStatus,
   deleteOrder,
 } from '../controllers/orders.controller.js';
+import {
+  listPaymentsAdmin,
+  getPaymentAdmin,
+  verifyPayment,
+  deletePayment,
+} from '../controllers/payment.controller.js';
+import {
+  listReviewsAdmin,
+  getReviewAdmin,
+  createReview,
+  updateReview,
+  deleteReview,
+} from '../controllers/review.controller.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 
@@ -37,7 +50,7 @@ router.post('/categories', createCategory);
 router.patch('/categories/:id', updateCategory);
 router.delete('/categories/:id', deleteCategory);
 
-// Products (upload.single('image') handles optional image file upload)
+// Products
 router.get('/products', listProductsAdmin);
 router.get('/products/:id', getProductById);
 router.post('/products', upload.single('image'), createProduct);
@@ -49,5 +62,18 @@ router.get('/orders', listOrdersAdmin);
 router.get('/orders/:id', getOrderAdmin);
 router.patch('/orders/:id/status', updateOrderStatus);
 router.delete('/orders/:id', deleteOrder);
+
+// Payments
+router.get('/payments', listPaymentsAdmin);
+router.get('/payments/:id', getPaymentAdmin);
+router.patch('/payments/:id', verifyPayment);
+router.delete('/payments/:id', deletePayment);
+
+// Reviews
+router.get('/reviews', listReviewsAdmin);
+router.get('/reviews/:id', getReviewAdmin);
+router.post('/reviews', createReview);
+router.patch('/reviews/:id', updateReview);
+router.delete('/reviews/:id', deleteReview);
 
 export default router;
