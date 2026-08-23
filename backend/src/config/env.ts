@@ -6,6 +6,7 @@ dotenv.config({ path: '.env.local' });
 export const config = {
   // Server
   PORT: parseInt(process.env.BACKEND_PORT || '5000', 10),
+  BASE_URL: process.env.BASE_URL || `http://localhost:${process.env.BACKEND_PORT || '5000'}`,
   NODE_ENV: process.env.NODE_ENV || 'development',
   
   // Database
