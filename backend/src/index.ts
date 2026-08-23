@@ -13,7 +13,7 @@ import adminRoutes from './routes/admin.routes.js';
 import productsRoutes from './routes/products.public.routes.js';
 import ordersRoutes from './routes/orders.route.js';
 import categoryRoutes from './routes/category.routes.js';
-import reviewRoutes from './routes/review.routes.js';
+import reviewRoutes from './routes/reviews.routes.js';
 
 const app: Express = express();
 app.set('trust proxy', 1);
