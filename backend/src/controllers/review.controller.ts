@@ -26,10 +26,13 @@ export async function listReviewsAdmin(req: Request, res: Response) {
 export async function listReviewsPublic(req: Request, res: Response) {
   try {
     const result = await query(
-      `SELECT r.*, p.name as product_name
-       FROM reviews r
-       LEFT JOIN products p ON r.product_id = p.id
-       ORDER BY r.created_at DESC`
+      `SELECT r.*, 
+       p.name as product_name,
+       COALESCE(r.customer_name, u.name) as reviewer_name
+        FROM reviews r
+        LEFT JOIN products p ON r.product_id = p.id
+        LEFT JOIN users u ON r.user_id = u.id
+        ORDER BY r.created_at DESC`
     );
     return sendSuccess(res, result.rows, 'Reviews fetched successfully');
   } catch (error) {
