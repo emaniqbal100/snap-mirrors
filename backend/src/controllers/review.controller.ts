@@ -62,10 +62,14 @@ export async function getReviewAdmin(req: Request, res: Response) {
 // CREATE review
 export async function createReview(req: Request, res: Response) {
   try {
-    const { product_id, user_id, rating, comment } = req.body;
+    const { product_id, user_id, customer_name, rating, comment } = req.body;
 
-    if (!product_id || !user_id || !rating || !comment) {
-      return sendValidationError(res, 'Product ID, user ID, rating, and comment required');
+    if (!product_id || !rating || !comment) {
+      return sendValidationError(res, 'Product ID, rating, and comment are required');
+    }
+
+    if (!user_id && !customer_name) {
+      return sendValidationError(res, 'Either user_id or customer_name is required');
     }
 
     if (rating < 1 || rating > 5) {
@@ -73,10 +77,10 @@ export async function createReview(req: Request, res: Response) {
     }
 
     const result = await query(
-      `INSERT INTO reviews (product_id, user_id, rating, comment)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO reviews (product_id, user_id, customer_name, rating, comment)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [product_id, user_id, rating, comment]
+      [product_id, user_id || null, customer_name || null, rating, comment]
     );
 
     return sendSuccess(res, result.rows[0], 'Review created successfully', 201);
