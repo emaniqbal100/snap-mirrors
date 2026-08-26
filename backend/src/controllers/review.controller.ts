@@ -11,9 +11,11 @@ import { query } from '../config/database.js';
 export async function listReviewsAdmin(req: Request, res: Response) {
   try {
     const result = await query(
-      `SELECT r.*, p.name as product_name
+      `SELECT r.*, p.name as product_name,
+              COALESCE(r.customer_name, u.name) as reviewer_name
        FROM reviews r
        LEFT JOIN products p ON r.product_id = p.id
+       LEFT JOIN users u ON r.user_id = u.id
        ORDER BY r.created_at DESC`
     );
     return sendSuccess(res, result.rows, 'Reviews fetched successfully');
@@ -26,9 +28,11 @@ export async function listReviewsAdmin(req: Request, res: Response) {
 export async function listReviewsPublic(req: Request, res: Response) {
   try {
     const result = await query(
-      `SELECT r.*, p.name as product_name
+      `SELECT r.*, p.name as product_name,
+              COALESCE(r.customer_name, u.name) as reviewer_name
        FROM reviews r
        LEFT JOIN products p ON r.product_id = p.id
+       LEFT JOIN users u ON r.user_id = u.id
        ORDER BY r.created_at DESC`
     );
     return sendSuccess(res, result.rows, 'Reviews fetched successfully');
@@ -42,9 +46,11 @@ export async function getReviewAdmin(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const result = await query(
-      `SELECT r.*, p.name as product_name
+      `SELECT r.*, p.name as product_name,
+              COALESCE(r.customer_name, u.name) as reviewer_name
        FROM reviews r
        LEFT JOIN products p ON r.product_id = p.id
+       LEFT JOIN users u ON r.user_id = u.id
        WHERE r.id = $1`,
       [id]
     );
@@ -62,10 +68,14 @@ export async function getReviewAdmin(req: Request, res: Response) {
 // CREATE review
 export async function createReview(req: Request, res: Response) {
   try {
-    const { product_id, user_id, rating, comment } = req.body;
+    const { product_id, user_id, customer_name, rating, comment } = req.body;
 
-    if (!product_id || !user_id || !rating || !comment) {
-      return sendValidationError(res, 'Product ID, user ID, rating, and comment required');
+    if (!product_id || !rating || !comment) {
+      return sendValidationError(res, 'Product ID, rating, and comment are required');
+    }
+
+    if (!user_id && !customer_name) {
+      return sendValidationError(res, 'Either user_id or customer_name is required');
     }
 
     if (rating < 1 || rating > 5) {
@@ -73,10 +83,10 @@ export async function createReview(req: Request, res: Response) {
     }
 
     const result = await query(
-      `INSERT INTO reviews (product_id, user_id, rating, comment)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO reviews (product_id, user_id, customer_name, rating, comment)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [product_id, user_id, rating, comment]
+      [product_id, user_id || null, customer_name || null, rating, comment]
     );
 
     return sendSuccess(res, result.rows[0], 'Review created successfully', 201);
@@ -89,7 +99,7 @@ export async function createReview(req: Request, res: Response) {
 export async function updateReview(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const { rating, comment } = req.body;
+    const { rating, comment, customer_name } = req.body;
 
     const existing = await query('SELECT * FROM reviews WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
@@ -99,10 +109,11 @@ export async function updateReview(req: Request, res: Response) {
     const result = await query(
       `UPDATE reviews 
        SET rating = COALESCE($1, rating),
-           comment = COALESCE($2, comment)
-       WHERE id = $3 
+           comment = COALESCE($2, comment),
+           customer_name = COALESCE($3, customer_name)
+       WHERE id = $4 
        RETURNING *`,
-      [rating || null, comment || null, id]
+      [rating || null, comment || null, customer_name || null, id]
     );
 
     return sendSuccess(res, result.rows[0], 'Review updated successfully');
