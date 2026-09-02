@@ -33,8 +33,8 @@ export async function createOrder(req: Request, res: Response) {
     if (!customer_phone || !customer_name || !customer_address) {
       return sendValidationError(res, 'Name, phone and address are required');
     }
-    if (!payment_method || !['online', 'cod'].includes(payment_method)) {
-      return sendValidationError(res, 'payment_method must be "online" or "cod"');
+    if (!payment_method || !['online', 'cod', 'jazzcash', 'easypaisa'].includes(payment_method)) {
+      return sendValidationError(res, 'payment_method must be "cod", "jazzcash", or "easypaisa"');
     }
     if (!Array.isArray(items) || items.length === 0) {
       return sendValidationError(res, 'At least one item is required');
