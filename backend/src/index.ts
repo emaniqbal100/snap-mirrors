@@ -14,15 +14,12 @@ import productsRoutes from './routes/products.public.routes.js';
 import ordersRoutes from './routes/orders.route.js';
 import categoryRoutes from './routes/category.routes.js';
 import reviewRoutes from './routes/reviews.routes.js';
+import paymentRoutes from './routes/payment.route.js';
 
 const app: Express = express();
 app.set('trust proxy', 1);
 
-app.use(
-  helmet({
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-  })
-);
+app.use(helmet());
 
 app.use(
   cors({
@@ -56,6 +53,7 @@ app.use('/api/products', productsRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/payments', paymentRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.json({
