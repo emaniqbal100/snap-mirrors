@@ -126,10 +126,88 @@ export async function deletePayment(req: Request, res: Response) {
   }
 }
 
+// GET available payment methods (public) - shows account numbers for JazzCash/EasyPaisa
+export async function getPaymentMethods(req: Request, res: Response) {
+  try {
+    const { config } = await import('../config/env.js');
+
+    const methods: any[] = [
+      { id: 'cod', name: 'Cash on Delivery', enabled: true },
+    ];
+
+    if (config.JAZZCASH.ENABLED !== false) {
+      methods.push({
+        id: 'jazzcash',
+        name: 'JazzCash',
+        enabled: true,
+        account_number: config.JAZZCASH.ACCOUNT,
+        instructions: `Send the order total to this JazzCash number: ${config.JAZZCASH.ACCOUNT}. After sending, upload a screenshot and enter the transaction ID.`,
+      });
+    }
+
+    if (config.EASYPAISA.ENABLED !== false) {
+      methods.push({
+        id: 'easypaisa',
+        name: 'EasyPaisa',
+        enabled: true,
+        account_number: config.EASYPAISA.ACCOUNT,
+        instructions: `Send the order total to this EasyPaisa number: ${config.EASYPAISA.ACCOUNT}. After sending, upload a screenshot and enter the transaction ID.`,
+      });
+    }
+
+    return sendSuccess(res, methods, 'Payment methods fetched successfully');
+  } catch (error) {
+    return sendServerError(res, 'Failed to fetch payment methods', error);
+  }
+}
+
+// POST upload payment proof for an order (public - guest checkout)
+// multipart/form-data: file field "proof", plus transaction_id in body
+export async function uploadPaymentProof(req: Request, res: Response) {
+  try {
+    const { order_id } = req.params;
+    const { transaction_id } = req.body;
+    const file = (req as any).file;
+
+    if (!transaction_id) {
+      return sendValidationError(res, 'transaction_id is required');
+    }
+    if (!file) {
+      return sendValidationError(res, 'Payment screenshot (proof) is required');
+    }
+
+    const { config } = await import('../config/env.js');
+    const proofUrl = `${config.BASE_URL}/uploads/${file.filename}`;
+
+    const paymentResult = await query(
+      `SELECT * FROM payments WHERE order_id = $1 ORDER BY id DESC LIMIT 1`,
+      [order_id]
+    );
+
+    if (paymentResult.rows.length === 0) {
+      return sendNotFound(res, 'No payment record found for this order');
+    }
+
+    const result = await query(
+      `UPDATE payments
+       SET proof_image = $1, transaction_id = $2
+       WHERE id = $3
+       RETURNING *`,
+      [proofUrl, transaction_id, paymentResult.rows[0].id]
+    );
+
+    return sendSuccess(res, result.rows[0], 'Payment proof uploaded successfully. We will verify it shortly.');
+  } catch (error) {
+    return sendServerError(res, 'Failed to upload payment proof', error);
+  }
+}
+
 export default {
   listPaymentsAdmin,
   getPaymentAdmin,
   initiatePayment,
   verifyPayment,
   deletePayment,
+  getPaymentMethods,
+  uploadPaymentProof,
 };
