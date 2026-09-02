@@ -24,7 +24,9 @@ export const config = {
   JWT_REFRESH_EXPIRE_IN: process.env.JWT_REFRESH_EXPIRE_IN || '30d',
 
   // CORS
-  CORS_ORIGIN: (process.env.CORS_ORIGIN || 'http://localhost:3000').split(','),
+  CORS_ORIGIN: (process.env.CORS_ORIGIN || 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim()),
   CORS_CREDENTIALS: process.env.CORS_CREDENTIALS === 'true',
 
   // Email
