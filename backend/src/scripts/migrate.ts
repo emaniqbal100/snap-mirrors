@@ -147,6 +147,20 @@ CREATE TABLE IF NOT EXISTS reviews (
 );
 
 -- ============================================
+-- PAYMENT METHOD UPGRADE (manual JazzCash/EasyPaisa verification)
+-- ============================================
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS proof_image TEXT;
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS wallet_number VARCHAR(20);
+
+ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_method_check;
+ALTER TABLE payments ADD CONSTRAINT payments_method_check
+  CHECK (method IN ('online', 'cod', 'jazzcash', 'easypaisa'));
+
+ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_method_check;
+ALTER TABLE orders ADD CONSTRAINT orders_payment_method_check
+  CHECK (payment_method IN ('online', 'cod', 'jazzcash', 'easypaisa'));
+
+-- ============================================
 -- INDEXES
 -- ============================================
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
