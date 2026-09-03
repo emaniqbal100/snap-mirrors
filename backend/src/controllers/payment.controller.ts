@@ -155,6 +155,18 @@ export async function getPaymentMethods(req: Request, res: Response) {
       });
     }
 
+    if (config.BANK_TRANSFER.ENABLED !== false) {
+      methods.push({
+        id: 'bank_transfer',
+        name: 'Bank Transfer',
+        enabled: true,
+        bank_name: config.BANK_TRANSFER.BANK_NAME,
+        account_number: config.BANK_TRANSFER.ACCOUNT_NUMBER,
+        account_holder: config.BANK_TRANSFER.ACCOUNT_HOLDER,
+        instructions: `Transfer the order total to ${config.BANK_TRANSFER.BANK_NAME}, Account Title: ${config.BANK_TRANSFER.ACCOUNT_HOLDER}, Account Number: ${config.BANK_TRANSFER.ACCOUNT_NUMBER}. After sending, upload a screenshot and enter the transaction/reference ID.`,
+      });
+    }
+
     return sendSuccess(res, methods, 'Payment methods fetched successfully');
   } catch (error) {
     return sendServerError(res, 'Failed to fetch payment methods', error);
