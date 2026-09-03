@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { config } from '../config/env.js';
+import { uploadBufferToCloudinary } from '../config/cloudinary.js';
 import {
   findAllProducts,
   findProductById,
@@ -88,7 +89,7 @@ export async function createProduct(req: Request, res: Response) {
     // Handle image upload
     let images: string[] | undefined = undefined;
     if (req.file) {
-      const imageUrl = `${config.BASE_URL}/uploads/${req.file.filename}`;
+      const imageUrl = await uploadBufferToCloudinary(req.file.buffer, 'products');
       images = [imageUrl];
     }
 
@@ -157,7 +158,7 @@ export async function updateProduct(req: Request, res: Response) {
     // Handle image upload - only update if new image provided
     let images: string[] | undefined = undefined;
     if (req.file) {
-      const imageUrl = `${config.BASE_URL}/uploads/${req.file.filename}`;
+      const imageUrl = await uploadBufferToCloudinary(req.file.buffer, 'products');
       images = [imageUrl];
     }
 
