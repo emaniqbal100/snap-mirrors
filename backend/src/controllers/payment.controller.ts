@@ -176,8 +176,8 @@ export async function uploadPaymentProof(req: Request, res: Response) {
       return sendValidationError(res, 'Payment screenshot (proof) is required');
     }
 
-    const { config } = await import('../config/env.js');
-    const proofUrl = `${config.BASE_URL}/uploads/${file.filename}`;
+    const { uploadBufferToCloudinary } = await import('../config/cloudinary.js');
+    const proofUrl = await uploadBufferToCloudinary(file.buffer, 'payment-proofs');
 
     const paymentResult = await query(
       `SELECT * FROM payments WHERE order_id = $1 ORDER BY id DESC LIMIT 1`,
