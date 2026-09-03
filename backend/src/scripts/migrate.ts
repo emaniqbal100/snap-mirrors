@@ -147,6 +147,21 @@ CREATE TABLE IF NOT EXISTS reviews (
 );
 
 -- ============================================
+-- ORDERS SCHEMA FIX (guest checkout support)
+-- The original table was created for a registered-account design
+-- (user_id NOT NULL). The app has since moved to guest checkout, which
+-- needs these customer_* columns and no required user account.
+-- ============================================
+ALTER TABLE orders ALTER COLUMN user_id DROP NOT NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_number VARCHAR(50) UNIQUE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_email VARCHAR(255);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(20);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_name VARCHAR(255);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_address TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_city VARCHAR(100);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20);
+
+-- ============================================
 -- PAYMENT METHOD UPGRADE (manual JazzCash/EasyPaisa verification)
 -- ============================================
 ALTER TABLE payments ADD COLUMN IF NOT EXISTS proof_image TEXT;
