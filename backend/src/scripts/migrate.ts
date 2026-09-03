@@ -154,11 +154,11 @@ ALTER TABLE payments ADD COLUMN IF NOT EXISTS wallet_number VARCHAR(20);
 
 ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_method_check;
 ALTER TABLE payments ADD CONSTRAINT payments_method_check
-  CHECK (method IN ('online', 'cod', 'jazzcash', 'easypaisa'));
+  CHECK (method IN ('online', 'cod', 'jazzcash', 'easypaisa', 'bank_transfer'));
 
 ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_method_check;
 ALTER TABLE orders ADD CONSTRAINT orders_payment_method_check
-  CHECK (payment_method IN ('online', 'cod', 'jazzcash', 'easypaisa'));
+  CHECK (payment_method IN ('online', 'cod', 'jazzcash', 'easypaisa', 'bank_transfer'));
 
 -- ============================================
 -- INDEXES
