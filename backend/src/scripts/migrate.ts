@@ -160,6 +160,8 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_name VARCHAR(255);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_address TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_city VARCHAR(100);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(100);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS estimated_delivery_date DATE;
 
 -- ============================================
 -- PAYMENT METHOD UPGRADE (manual JazzCash/EasyPaisa verification)
