@@ -75,15 +75,31 @@ export async function getProductById(req: Request, res: Response) {
   }
 }
 
+// Helper: normalize an incoming discount_price value.
+// Accepts undefined, "", null, or a numeric string/number.
+// Returns null when no discount should be stored, otherwise a number.
+function parseDiscountPrice(value: unknown): number | null | undefined {
+  if (value === undefined) return undefined; // not sent at all -> don't touch existing value on update
+  if (value === null || value === '') return null; // explicitly cleared
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
 // POST /api/admin/products
-// body: { name, description, base_price, category_id, variants: [{size, color, sku, price, stock_quantity}] }
+// body: { name, description, base_price, discount_price, category_id, variants: [{size, color, sku, price, stock_quantity}] }
 // file: image (multipart/form-data, optional)
 export async function createProduct(req: Request, res: Response) {
   try {
-    const { name, description, base_price, category_id, variants } = req.body;
+    const { name, description, base_price, discount_price, category_id, variants } = req.body;
 
     if (!name || base_price === undefined) {
       return sendValidationError(res, 'Name and base_price are required');
+    }
+
+    // Validate discount is actually lower than base price when provided
+    const parsedDiscount = parseDiscountPrice(discount_price);
+    if (parsedDiscount !== null && parsedDiscount !== undefined && parsedDiscount >= Number(base_price)) {
+      return sendValidationError(res, 'Discount price must be lower than base price');
     }
 
     // Handle image upload
@@ -100,6 +116,7 @@ export async function createProduct(req: Request, res: Response) {
       slug,
       description,
       base_price,
+      discount_price: parsedDiscount ?? null,
       category_id,
       images,
     });
@@ -140,13 +157,13 @@ export async function createProduct(req: Request, res: Response) {
 }
 
 // PATCH /api/admin/products/:id
-// body: { name?, description?, base_price?, category_id?, is_active?, variants?: [{size, color, sku, price, stock_quantity}] }
+// body: { name?, description?, base_price?, discount_price?, category_id?, is_active?, variants?: [{size, color, sku, price, stock_quantity}] }
 // file: image (multipart/form-data, optional)
 export async function updateProduct(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const productId = parseInt(id, 10);
-    const { name, description, base_price, category_id, is_active, variants } = req.body;
+    const { name, description, base_price, discount_price, category_id, is_active, variants } = req.body;
 
     const existing = await findProductById(productId);
     if (!existing) {
@@ -154,6 +171,13 @@ export async function updateProduct(req: Request, res: Response) {
     }
 
     const slug = name ? slugify(name) : undefined;
+
+    // Validate discount is lower than base price when both are known
+    const parsedDiscount = parseDiscountPrice(discount_price);
+    const effectiveBasePrice = base_price !== undefined ? Number(base_price) : Number(existing.base_price);
+    if (parsedDiscount !== null && parsedDiscount !== undefined && parsedDiscount >= effectiveBasePrice) {
+      return sendValidationError(res, 'Discount price must be lower than base price');
+    }
 
     // Handle image upload - only update if new image provided
     let images: string[] | undefined = undefined;
@@ -167,6 +191,7 @@ export async function updateProduct(req: Request, res: Response) {
       slug,
       description,
       base_price,
+      discount_price: parsedDiscount, // undefined = leave unchanged, null = clear, number = set
       category_id,
       images,
       is_active,
