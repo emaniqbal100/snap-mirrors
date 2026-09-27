@@ -7,6 +7,7 @@ export interface Product {
   slug: string;
   description: string | null;
   base_price: number;
+  discount_price: number | null; // NEW
   images: string[];
   is_active: boolean;
   created_at: Date;
@@ -105,11 +106,12 @@ export async function createProduct(data: {
   slug: string;
   description?: string;
   base_price: number;
+  discount_price?: number | null; // NEW
   images?: string[];
 }): Promise<Product> {
   const result = await query(
-    `INSERT INTO products (category_id, name, slug, description, base_price, images)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO products (category_id, name, slug, description, base_price, discount_price, images)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
     [
       data.category_id || null,
@@ -117,6 +119,7 @@ export async function createProduct(data: {
       data.slug,
       data.description || null,
       data.base_price,
+      data.discount_price ?? null, // NEW
       JSON.stringify(data.images || []),
     ]
   );
@@ -131,10 +134,18 @@ export async function updateProduct(
     slug?: string;
     description?: string;
     base_price?: number;
+    discount_price?: number | null; // NEW — undefined means "leave unchanged", null means "clear it"
     images?: string[];
     is_active?: boolean;
   }
 ): Promise<Product | null> {
+  // discount_price needs special handling: unlike the other fields, `null` is a valid,
+  // meaningful value here (it means "remove the discount"), so COALESCE(NULL, ...) would
+  // wrongly keep the old value. We only fall back to the existing value when the caller
+  // didn't send the field at all (undefined).
+  const discountPriceParam = data.discount_price === undefined ? null : data.discount_price;
+  const shouldUpdateDiscount = data.discount_price !== undefined;
+
   const result = await query(
     `UPDATE products
      SET category_id = COALESCE($1, category_id),
@@ -142,10 +153,11 @@ export async function updateProduct(
          slug = COALESCE($3, slug),
          description = COALESCE($4, description),
          base_price = COALESCE($5, base_price),
-         images = COALESCE($6, images),
-         is_active = COALESCE($7, is_active),
+         discount_price = CASE WHEN $6 THEN $7 ELSE discount_price END,
+         images = COALESCE($8, images),
+         is_active = COALESCE($9, is_active),
          updated_at = NOW()
-     WHERE id = $8
+     WHERE id = $10
      RETURNING *`,
     [
       data.category_id ?? null,
@@ -153,6 +165,8 @@ export async function updateProduct(
       data.slug ?? null,
       data.description ?? null,
       data.base_price ?? null,
+      shouldUpdateDiscount, // NEW: $6 — whether to touch discount_price at all
+      discountPriceParam, // NEW: $7 — the new value (or null to clear)
       data.images ? JSON.stringify(data.images) : null,
       data.is_active ?? null,
       id,
