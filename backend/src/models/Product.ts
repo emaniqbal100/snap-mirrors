@@ -106,12 +106,12 @@ export async function createProduct(data: {
   slug: string;
   description?: string;
   base_price: number;
-  discount_price?: number | null; // NEW
+  discount_price?: number | null;
   images?: string[];
 }): Promise<Product> {
   const result = await query(
     `INSERT INTO products (category_id, name, slug, description, base_price, discount_price, images)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
      RETURNING *`,
     [
       data.category_id || null,
@@ -119,13 +119,12 @@ export async function createProduct(data: {
       data.slug,
       data.description || null,
       data.base_price,
-      data.discount_price ?? null, // NEW
-      JSON.stringify(data.images || []),
+      data.discount_price ?? null,
+      JSON.stringify(data.images || []), // Ab ::jsonb ki waja se jsonb ban kar insert hoga
     ]
   );
   return result.rows[0];
 }
-
 export async function updateProduct(
   id: number,
   data: {
@@ -134,15 +133,11 @@ export async function updateProduct(
     slug?: string;
     description?: string;
     base_price?: number;
-    discount_price?: number | null; // NEW — undefined means "leave unchanged", null means "clear it"
+    discount_price?: number | null;
     images?: string[];
     is_active?: boolean;
   }
 ): Promise<Product | null> {
-  // discount_price needs special handling: unlike the other fields, `null` is a valid,
-  // meaningful value here (it means "remove the discount"), so COALESCE(NULL, ...) would
-  // wrongly keep the old value. We only fall back to the existing value when the caller
-  // didn't send the field at all (undefined).
   const discountPriceParam = data.discount_price === undefined ? null : data.discount_price;
   const shouldUpdateDiscount = data.discount_price !== undefined;
 
@@ -154,7 +149,7 @@ export async function updateProduct(
          description = COALESCE($4, description),
          base_price = COALESCE($5, base_price),
          discount_price = CASE WHEN $6 THEN $7 ELSE discount_price END,
-         images = COALESCE($8, images),
+         images = COALESCE($8::jsonb, images),
          is_active = COALESCE($9, is_active),
          updated_at = NOW()
      WHERE id = $10
@@ -165,8 +160,8 @@ export async function updateProduct(
       data.slug ?? null,
       data.description ?? null,
       data.base_price ?? null,
-      shouldUpdateDiscount, // NEW: $6 — whether to touch discount_price at all
-      discountPriceParam, // NEW: $7 — the new value (or null to clear)
+      shouldUpdateDiscount,
+      discountPriceParam,
       data.images ? JSON.stringify(data.images) : null,
       data.is_active ?? null,
       id,
