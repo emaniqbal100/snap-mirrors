@@ -1,12 +1,14 @@
 import multer from 'multer';
 
-// Store file in memory (buffer) instead of disk - we upload straight to
-// Cloudinary from the buffer, so nothing gets saved to Railway's disk
-// (which is wiped on every redeploy).
+// IMPORTANT: memoryStorage (not diskStorage) — the product controller reads
+// req.file.buffer / req.files[].buffer to upload directly to Cloudinary.
+// Railway/Vercel containers have ephemeral disks, so files written to disk
+// would be lost anyway; memory storage avoids that entirely.
 const storage = multer.memoryStorage();
 
 const fileFilter = (req: any, file: any, cb: any) => {
   const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -14,12 +16,21 @@ const fileFilter = (req: any, file: any, cb: any) => {
   }
 };
 
-export const upload = multer({
+const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 5 * 1024 * 1024, // 5MB per file
   },
 });
 
+// Kept for any existing single-image routes.
+export const uploadSingleImage = upload.single('image');
+
+// NEW: accepts up to 6 images in one request, all under the field name "newImages".
+// On the client, append each File under the same field name:
+//   files.forEach((file) => formData.append('newImages', file));
+export const uploadMultipleImages = upload.array('newImages', 6);
+
+export const upload_ = upload;
 export default upload;
