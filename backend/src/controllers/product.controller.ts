@@ -23,7 +23,6 @@ import {
 // PUBLIC
 // ============================================
 
-// GET /api/products (public - only active products)
 export async function listProductsPublic(req: Request, res: Response) {
   try {
     const products = await findAllProducts(true);
@@ -33,7 +32,6 @@ export async function listProductsPublic(req: Request, res: Response) {
   }
 }
 
-// GET /api/products/:slug (public)
 export async function getProductBySlug(req: Request, res: Response) {
   try {
     const { slug } = req.params;
@@ -51,7 +49,6 @@ export async function getProductBySlug(req: Request, res: Response) {
 // ADMIN
 // ============================================
 
-// GET /api/admin/products (admin - all products including inactive)
 export async function listProductsAdmin(req: Request, res: Response) {
   try {
     const products = await findAllProducts(false);
@@ -61,7 +58,6 @@ export async function listProductsAdmin(req: Request, res: Response) {
   }
 }
 
-// GET /api/admin/products/:id (admin)
 export async function getProductById(req: Request, res: Response) {
   try {
     const { id } = req.params;
@@ -75,19 +71,52 @@ export async function getProductById(req: Request, res: Response) {
   }
 }
 
-// Helper: normalize an incoming discount_price value.
-// Accepts undefined, "", null, or a numeric string/number.
-// Returns null when no discount should be stored, otherwise a number.
 function parseDiscountPrice(value: unknown): number | null | undefined {
-  if (value === undefined) return undefined; // not sent at all -> don't touch existing value on update
-  if (value === null || value === '') return null; // explicitly cleared
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
   const num = Number(value);
   return Number.isFinite(num) ? num : null;
 }
 
+// NEW: combine any image URLs the admin typed manually (sent as a JSON string
+// in the "images" field) with any newly uploaded files (sent as multipart
+// files under the "newImages" field, up to 6 — see uploadMultipleImages).
+async function resolveImages(req: Request): Promise<string[] | undefined> {
+  let urlImages: string[] = [];
+
+  if (typeof req.body.images === 'string' && req.body.images.trim() !== '') {
+    try {
+      const parsed = JSON.parse(req.body.images);
+      if (Array.isArray(parsed)) urlImages = parsed.filter((u) => typeof u === 'string' && u.trim());
+    } catch {
+      // ignore malformed JSON — treat as no URL images
+    }
+  } else if (Array.isArray(req.body.images)) {
+    urlImages = req.body.images.filter((u: unknown) => typeof u === 'string' && (u as string).trim());
+  }
+
+  const uploadedFiles = (req.files as Express.Multer.File[] | undefined) ?? (req.file ? [req.file] : []);
+
+  let uploadedUrls: string[] = [];
+  if (uploadedFiles.length > 0) {
+    uploadedUrls = await Promise.all(
+      uploadedFiles.map((file) => uploadBufferToCloudinary(file.buffer, 'products'))
+    );
+  }
+
+  const combined = [...urlImages, ...uploadedUrls];
+
+  // undefined means "don't touch existing images" (relevant for updates when
+  // the admin didn't change anything about the images section at all).
+  if (combined.length === 0 && urlImages.length === 0 && uploadedUrls.length === 0 && req.body.images === undefined) {
+    return undefined;
+  }
+  return combined;
+}
+
 // POST /api/admin/products
-// body: { name, description, base_price, discount_price, category_id, variants: [{size, color, sku, price, stock_quantity}] }
-// file: image (multipart/form-data, optional)
+// body: { name, description, base_price, discount_price, category_id, images (JSON string of URLs), variants }
+// files: newImages (multipart/form-data, up to 6, optional)
 export async function createProduct(req: Request, res: Response) {
   try {
     const { name, description, base_price, discount_price, category_id, variants } = req.body;
@@ -96,18 +125,12 @@ export async function createProduct(req: Request, res: Response) {
       return sendValidationError(res, 'Name and base_price are required');
     }
 
-    // Validate discount is actually lower than base price when provided
     const parsedDiscount = parseDiscountPrice(discount_price);
     if (parsedDiscount !== null && parsedDiscount !== undefined && parsedDiscount >= Number(base_price)) {
       return sendValidationError(res, 'Discount price must be lower than base price');
     }
 
-    // Handle image upload
-    let images: string[] | undefined = undefined;
-    if (req.file) {
-      const imageUrl = await uploadBufferToCloudinary(req.file.buffer, 'products');
-      images = [imageUrl];
-    }
+    const images = await resolveImages(req);
 
     const slug = slugify(name);
 
@@ -157,8 +180,6 @@ export async function createProduct(req: Request, res: Response) {
 }
 
 // PATCH /api/admin/products/:id
-// body: { name?, description?, base_price?, discount_price?, category_id?, is_active?, variants?: [{size, color, sku, price, stock_quantity}] }
-// file: image (multipart/form-data, optional)
 export async function updateProduct(req: Request, res: Response) {
   try {
     const { id } = req.params;
@@ -172,26 +193,20 @@ export async function updateProduct(req: Request, res: Response) {
 
     const slug = name ? slugify(name) : undefined;
 
-    // Validate discount is lower than base price when both are known
     const parsedDiscount = parseDiscountPrice(discount_price);
     const effectiveBasePrice = base_price !== undefined ? Number(base_price) : Number(existing.base_price);
     if (parsedDiscount !== null && parsedDiscount !== undefined && parsedDiscount >= effectiveBasePrice) {
       return sendValidationError(res, 'Discount price must be lower than base price');
     }
 
-    // Handle image upload - only update if new image provided
-    let images: string[] | undefined = undefined;
-    if (req.file) {
-      const imageUrl = await uploadBufferToCloudinary(req.file.buffer, 'products');
-      images = [imageUrl];
-    }
+    const images = await resolveImages(req);
 
     const updated = await updateProductModel(productId, {
       name,
       slug,
       description,
       base_price,
-      discount_price: parsedDiscount, // undefined = leave unchanged, null = clear, number = set
+      discount_price: parsedDiscount,
       category_id,
       images,
       is_active,
@@ -227,7 +242,6 @@ export async function updateProduct(req: Request, res: Response) {
   }
 }
 
-// DELETE /api/admin/products/:id
 export async function deleteProduct(req: Request, res: Response) {
   try {
     const { id } = req.params;
