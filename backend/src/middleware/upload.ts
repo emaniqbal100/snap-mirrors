@@ -16,7 +16,10 @@ const fileFilter = (req: any, file: any, cb: any) => {
   }
 };
 
-const upload = multer({
+// Kept as the original named export "upload" — other routes (admin.routes.ts,
+// payment.route.ts) import this directly, e.g. `upload.single('receipt')`.
+// Do not rename this export.
+export const upload = multer({
   storage,
   fileFilter,
   limits: {
@@ -32,5 +35,4 @@ export const uploadSingleImage = upload.single('image');
 //   files.forEach((file) => formData.append('newImages', file));
 export const uploadMultipleImages = upload.array('newImages', 6);
 
-export const upload_ = upload;
 export default upload;
