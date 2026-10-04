@@ -33,7 +33,7 @@ import {
   deleteReview,
 } from '../controllers/review.controller.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.js';
-import { upload } from '../middleware/upload.js';
+import { upload, uploadMultipleImages } from '../middleware/upload.js';
 
 const router = Router();
 
@@ -53,8 +53,10 @@ router.delete('/categories/:id', deleteCategory);
 // Products
 router.get('/products', listProductsAdmin);
 router.get('/products/:id', getProductById);
-router.post('/products', upload.single('image'), createProduct);
-router.patch('/products/:id', upload.single('image'), updateProduct);
+// NEW: uploadMultipleImages accepts up to 6 files under the field name "newImages"
+// (previously upload.single('image') only accepted one file under "image").
+router.post('/products', uploadMultipleImages, createProduct);
+router.patch('/products/:id', uploadMultipleImages, updateProduct);
 router.delete('/products/:id', deleteProduct);
 
 // Orders
