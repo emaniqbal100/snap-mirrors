@@ -97,6 +97,9 @@ export function parseQueryString(queryString: string): Record<string, string | s
 
   return result;
 }
+export async function testPassword(password: string, hash: string): Promise<boolean> {
+  return comparePassword(password, hash);
+}
 
 // Sleep function (for testing)
 export function sleep(ms: number): Promise<void> {
@@ -117,4 +120,5 @@ export default {
   slugify,
   parseQueryString,
   sleep,
+  testPassword,
 };

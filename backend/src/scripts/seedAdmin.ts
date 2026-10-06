@@ -6,8 +6,8 @@ dotenv.config({ path: '.env.local' });
 
 // 🔧 CHANGE THESE VALUES before running
 const ADMIN_NAME = 'Super Admin';
-const ADMIN_EMAIL = 'admin@snapmirror.com';
-const ADMIN_PASSWORD = 'Testing123!';
+const ADMIN_EMAIL = 'outflade@admin.com';
+const ADMIN_PASSWORD = 'OUTflade__01';
 
 async function seedAdmin() {
   try {
