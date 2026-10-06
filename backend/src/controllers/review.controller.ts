@@ -68,25 +68,36 @@ export async function getReviewAdmin(req: Request, res: Response) {
 // CREATE review
 export async function createReview(req: Request, res: Response) {
   try {
-    const { product_id, user_id, rating, comment } = req.body;
+    const { product_id, user_id, customer_name, rating, comment } = req.body;
 
     if (!product_id || !rating || !comment) {
       return sendValidationError(res, 'Product ID, rating, and comment are required');
     }
 
-    if (!user_id) {
-      return sendValidationError(res, 'user_id is required');
+    if (!user_id && !customer_name) {
+      return sendValidationError(res, 'Either user_id or customer_name is required');
     }
 
     if (rating < 1 || rating > 5) {
       return sendValidationError(res, 'Rating must be between 1 and 5');
     }
 
+    // If a customer_name is provided, try to resolve to an existing user id.
+    let resolvedUserId = user_id ?? null;
+    if (!resolvedUserId && customer_name) {
+      const userRes = await query('SELECT id FROM users WHERE name ILIKE $1 LIMIT 1', [customer_name]);
+      if (userRes.rows.length > 0) {
+        resolvedUserId = userRes.rows[0].id;
+      } else {
+        resolvedUserId = null; // keep as anonymous review (user_id nullable)
+      }
+    }
+
     const result = await query(
       `INSERT INTO reviews (product_id, user_id, rating, comment)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [product_id, user_id, rating, comment]
+      [product_id, resolvedUserId, rating, comment]
     );
 
     return sendSuccess(res, result.rows[0], 'Review created successfully', 201);
