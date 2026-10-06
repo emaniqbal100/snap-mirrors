@@ -140,11 +140,16 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE TABLE IF NOT EXISTS reviews (
   id SERIAL PRIMARY KEY,
   product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  -- allow nullable user_id to support guest/anonymous reviews
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
   rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
   comment TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Ensure existing installations that created the table previously get the column
+-- updated to allow NULLs for guest reviews
+ALTER TABLE reviews ALTER COLUMN user_id DROP NOT NULL;
 
 -- ============================================
 -- ORDERS SCHEMA FIX (guest checkout support)
