@@ -98,16 +98,7 @@ export async function createReview(req: Request, res: Response) {
       comment,
     } = req.body;
 
-    console.log('\n========== CREATE REVIEW ==========');
-    console.log('Request body:', req.body);
-    console.log('product_id:', product_id);
-    console.log('customer_name:', customer_name);
-    console.log('rating:', rating);
-    console.log('comment:', comment);
-
     if (!product_id || !customer_name || !rating || !comment) {
-      console.error('VALIDATION ERROR: Missing required field');
-
       return sendValidationError(
         res,
         'Product ID, customer name, rating, and comment are required'
@@ -115,15 +106,11 @@ export async function createReview(req: Request, res: Response) {
     }
 
     if (rating < 1 || rating > 5) {
-      console.error('VALIDATION ERROR: Invalid rating:', rating);
-
       return sendValidationError(
         res,
         'Rating must be between 1 and 5'
       );
     }
-
-    console.log('Executing INSERT...');
 
     const result = await query(
       `INSERT INTO reviews
@@ -138,36 +125,14 @@ export async function createReview(req: Request, res: Response) {
       ]
     );
 
-    console.log('REVIEW CREATED SUCCESSFULLY:');
-    console.log(result.rows[0]);
-    console.log('===================================\n');
-
     return sendSuccess(
       res,
       result.rows[0],
       'Review created successfully',
       201
     );
-
-  } catch (error: any) {
-    console.error(
-      '🔥 REVIEW ERROR:',
-      JSON.stringify(
-        {
-          message: error?.message ?? null,
-          code: error?.code ?? null,
-          detail: error?.detail ?? null,
-          hint: error?.hint ?? null,
-          table: error?.table ?? null,
-          column: error?.column ?? null,
-          constraint: error?.constraint ?? null,
-          dataType: error?.dataType ?? null,
-          stack: error?.stack ?? null,
-        },
-        null,
-        2
-      )
-    );
+  } catch (error) {
+    console.error('🔥 REVIEW ERROR:', error);
 
     return sendServerError(
       res,
