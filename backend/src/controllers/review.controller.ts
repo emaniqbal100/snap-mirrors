@@ -98,6 +98,13 @@ export async function createReview(req: Request, res: Response) {
       comment,
     } = req.body;
 
+    console.log('Review request:', {
+      product_id,
+      customer_name,
+      rating,
+      comment,
+    });
+
     if (!product_id || !customer_name || !rating || !comment) {
       return sendValidationError(
         res,
@@ -132,7 +139,7 @@ export async function createReview(req: Request, res: Response) {
       201
     );
   } catch (error) {
-    console.error('Error creating review:', error);
+    console.error('ERROR CREATING REVIEW:', error);
 
     return sendServerError(
       res,
