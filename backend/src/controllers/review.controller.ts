@@ -150,24 +150,24 @@ export async function createReview(req: Request, res: Response) {
     );
 
   } catch (error: any) {
-
-    console.error('\n===================================');
-    console.error('🔥 CREATE REVIEW DATABASE ERROR');
-    console.error('===================================');
-
-    console.error('Message:', error?.message);
-    console.error('Code:', error?.code);
-    console.error('Detail:', error?.detail);
-    console.error('Hint:', error?.hint);
-    console.error('Table:', error?.table);
-    console.error('Column:', error?.column);
-    console.error('Constraint:', error?.constraint);
-    console.error('Data type:', error?.dataType);
-    console.error('Stack:', error?.stack);
-
-    console.error('Full error object:', error);
-
-    console.error('===================================\n');
+    console.error(
+      '🔥 REVIEW ERROR:',
+      JSON.stringify(
+        {
+          message: error?.message ?? null,
+          code: error?.code ?? null,
+          detail: error?.detail ?? null,
+          hint: error?.hint ?? null,
+          table: error?.table ?? null,
+          column: error?.column ?? null,
+          constraint: error?.constraint ?? null,
+          dataType: error?.dataType ?? null,
+          stack: error?.stack ?? null,
+        },
+        null,
+        2
+      )
+    );
 
     return sendServerError(
       res,
