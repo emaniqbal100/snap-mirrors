@@ -66,17 +66,58 @@ export async function getReviewAdmin(req: Request, res: Response) {
 }
 
 // CREATE review
-export async function createReview(req: Request, res: Response)
- { 
-  try { 
-    const { product_id, user_id, rating, comment, } = req.body; 
-    if (!product_id || !rating || !comment)
-       { return sendValidationError( res, 'Product ID, rating, and comment are required' ); 
+export async function createReview(req: Request, res: Response) {
+  try {
+    const {
+      product_id,
+      customer_name,
+      rating,
+      comment,
+    } = req.body;
 
-       }
-        if (!user_id)
-           { return sendValidationError( res, 'user_id is required' ); }
-         if (rating < 1 || rating > 5) { return sendValidationError( res, 'Rating must be between 1 and 5' ); } const result = await query( `INSERT INTO reviews (product_id, user_id, rating, comment) VALUES ($1, $2, $3, $4) RETURNING *`, [ product_id, user_id, rating, comment, ] ); return sendSuccess( res, result.rows[0], 'Review created successfully', 201 ); } catch (error) { console.error('Error creating review:', error); return sendServerError( res, 'Failed to create review', error ); } }
+    if (!product_id || !customer_name || !rating || !comment) {
+      return sendValidationError(
+        res,
+        'Product ID, customer name, rating, and comment are required'
+      );
+    }
+
+    if (rating < 1 || rating > 5) {
+      return sendValidationError(
+        res,
+        'Rating must be between 1 and 5'
+      );
+    }
+
+    const result = await query(
+      `INSERT INTO reviews
+        (product_id, customer_name, rating, comment)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [
+        product_id,
+        customer_name,
+        rating,
+        comment,
+      ]
+    );
+
+    return sendSuccess(
+      res,
+      result.rows[0],
+      'Review created successfully',
+      201
+    );
+  } catch (error) {
+    console.error('Error creating review:', error);
+
+    return sendServerError(
+      res,
+      'Failed to create review',
+      error
+    );
+  }
+}
 // UPDATE review
 export async function updateReview(req: Request, res: Response) {
   try {
