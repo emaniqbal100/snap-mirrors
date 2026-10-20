@@ -14,6 +14,7 @@ export interface Product {
   updated_at: Date;
 }
 
+
 export interface ProductVariant {
   id: number;
   product_id: number;
