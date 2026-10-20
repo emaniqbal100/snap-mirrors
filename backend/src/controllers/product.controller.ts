@@ -11,6 +11,7 @@ import {
   createVariant,
   deleteVariantsByProductId,
 } from '../models/Product.js';
+import { findCategoryBySlug, getCategoryAndDescendantIds } from '../models/Category.js';
 import { slugify } from '../utils/helpers.js';
 import {
   sendSuccess,
@@ -23,9 +24,20 @@ import {
 // PUBLIC
 // ============================================
 
+// GET /api/products
+//   ?category=<slug>  optional. A main category slug returns its own products plus those of all
+//                     its sub-categories; a sub-category slug returns only that sub-category.
 export async function listProductsPublic(req: Request, res: Response) {
   try {
-    const products = await findAllProducts(true);
+    let categoryIds: number[] | undefined;
+    if (typeof req.query.category === 'string' && req.query.category.trim() !== '') {
+      const category = await findCategoryBySlug(req.query.category.trim());
+      if (!category) {
+        return sendSuccess(res, [], 'Products fetched successfully');
+      }
+      categoryIds = await getCategoryAndDescendantIds(category.id);
+    }
+    const products = await findAllProducts(true, categoryIds);
     return sendSuccess(res, products, 'Products fetched successfully');
   } catch (error) {
     return sendServerError(res, 'Failed to fetch products', error);
