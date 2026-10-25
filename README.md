@@ -30,20 +30,6 @@ snap-mirror-project/
 - **Database**: PostgreSQL (Neon)
 - **Authentication**: JWT
 - **Email**: Nodemailer (Hostinger SMTP)
-
-### Frontend
-- **Framework**: Next.js 14
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **State**: React Hooks / Context API
-- **HTTP Client**: Axios
-
-### Admin
-- **Framework**: Next.js 14
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **UI**: React Components
-
 ## 📋 Prerequisites
 
 - Node.js 18+ 
@@ -64,13 +50,6 @@ cd snap-mirror-project
 cd backend
 npm install
 
-# Install frontend dependencies
-cd ../frontend
-npm install
-
-# Install admin dependencies
-cd ../admin
-npm install
 ```
 
 ### 2. Environment Setup
@@ -78,9 +57,6 @@ npm install
 ```bash
 # Copy env template to each folder
 cp .env.example backend/.env
-cp .env.example frontend/.env.local
-cp .env.example admin/.env.local
-
 # Edit and fill in actual values
 # - Database URL (Neon)
 # - Payment API keys
@@ -104,16 +80,6 @@ npm run seed  # Insert sample data
 cd backend
 npm run dev
 # Runs on http://localhost:5000
-
-# Terminal 2 - Frontend (Public Website)
-cd frontend
-npm run dev
-# Runs on http://localhost:3000
-
-# Terminal 3 - Admin Portal
-cd admin
-npm run dev
-# Runs on http://localhost:3001
 ```
 
 ## 📚 API Documentation
@@ -156,42 +122,13 @@ User: `orders@snapsmirror.com`
 3. **Bank Transfer** - JS Bank, Account: 03244612168
 4. **Cash on Delivery** - Pay on delivery
 
-## 🎨 Customization
-
-### Change Colors/Theme
-Edit in Admin Portal → Settings → Theme
-
-### Update Social Media Links
-Admin Portal → Settings → Social Media
-
-### Manage Products
-Admin Portal → Products → Add/Edit/Delete
-
-### Manage Reviews
-Admin Portal → Reviews → Publish/Hide/Edit
-
-## 🚀 Deployment
-
-### Frontend (Vercel)
-```bash
-cd admin
-npm run build
-vercel deploy
-```
-
-### Backend (Hostinger)
+### Backend (Railway
 ```bash
 cd backend
 npm run build
 # Upload to Hostinger hosting
 ```
 
-### Public Website (Hostinger)
-```bash
-cd frontend
-npm run build
-# Upload to Hostinger hosting
-```
 
 ## 📱 Contact
 
@@ -210,5 +147,5 @@ For issues and support, contact via WhatsApp or email.
 
 ---
 
-**Last Updated**: August 2024
+**Last Updated**: October 2026
 **Version**: 1.0.0-dev
