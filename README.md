@@ -18,8 +18,6 @@ Modern e-commerce platform for smart mirrors with admin dashboard, payment integ
 ```
 snap-mirror-project/
 ├── backend/              # Node.js + Express API
-├── frontend/             # Next.js Public Website
-├── admin/                # Next.js Admin Dashboard
 ├── .env.example          # Environment template
 └── README.md
 ```
