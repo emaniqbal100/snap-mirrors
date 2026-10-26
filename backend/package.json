@@ -11,7 +11,8 @@
         "test": "jest",
         "migrate": "tsx src/scripts/migrate.ts",
         "seed": "tsx src/scripts/seed.ts",
-        "seed:admin": "tsx src/scripts/seedAdmin.ts"
+        "seed:admin": "tsx src/scripts/seedAdmin.ts",
+        "seed:categories": "tsx src/scripts/seedCategories.ts"
     },
     "keywords": [
         "backend",
@@ -38,6 +39,7 @@
         "nodemailer": "^6.9.13",
         "pg": "^8.22.0",
         "pg-pool": "^3.6.1",
+        "sanitize-html": "^2.18.1",
         "uuid": "^14.0.1"
     },
     "devDependencies": {
@@ -50,6 +52,7 @@
         "@types/node": "^20.10.6",
         "@types/nodemailer": "^6.4.14",
         "@types/pg": "^8.20.4",
+        "@types/sanitize-html": "^2.16.2",
         "nodemon": "^3.0.2",
         "ts-node": "^10.9.2",
         "tsx": "^4.23.10",

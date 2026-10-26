@@ -1,5 +1,10 @@
 import { query } from '../config/database.js';
 
+export interface ProductSpecification {
+  label: string;
+  value: string;
+}
+
 export interface Product {
   id: number;
   category_id: number | null;
@@ -9,11 +14,12 @@ export interface Product {
   base_price: number;
   discount_price: number | null; // NEW
   images: string[];
+  specifications: ProductSpecification[];
+  highlights: string[];
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
 }
-
 
 export interface ProductVariant {
   id: number;
@@ -29,18 +35,40 @@ export interface ProductVariant {
 export interface ProductWithVariants extends Product {
   variants: ProductVariant[];
   category_name?: string;
+  category_slug?: string;
+  category_parent_id?: number | null;
+  parent_category_name?: string | null;
+  parent_category_slug?: string | null;
 }
 
 // ============ PRODUCTS ============
 
-export async function findAllProducts(activeOnly = false): Promise<ProductWithVariants[]> {
-  const whereClause = activeOnly ? 'WHERE p.is_active = true' : '';
+// category_name / category_slug describe the category the product is filed under (this can be a
+// sub-category). When it is a sub-category, parent_category_* describe its main category.
+const CATEGORY_COLUMNS = `c.name AS category_name, c.slug AS category_slug,
+       c.parent_id AS category_parent_id,
+       pc.name AS parent_category_name, pc.slug AS parent_category_slug`;
+
+export async function findAllProducts(
+  activeOnly = false,
+  categoryIds?: number[]
+): Promise<ProductWithVariants[]> {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  if (activeOnly) conditions.push('p.is_active = true');
+  if (categoryIds) {
+    params.push(categoryIds);
+    conditions.push(`p.category_id = ANY($${params.length}::int[])`);
+  }
+  const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const result = await query(
-    `SELECT p.*, c.name as category_name
+    `SELECT p.*, ${CATEGORY_COLUMNS}
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.id
+     LEFT JOIN categories pc ON c.parent_id = pc.id
      ${whereClause}
-     ORDER BY p.created_at DESC`
+     ORDER BY p.created_at DESC`,
+    params
   );
 
   const products = result.rows;
@@ -67,9 +95,10 @@ export async function findAllProducts(activeOnly = false): Promise<ProductWithVa
 
 export async function findProductById(id: number): Promise<ProductWithVariants | null> {
   const result = await query(
-    `SELECT p.*, c.name as category_name
+    `SELECT p.*, ${CATEGORY_COLUMNS}
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.id
+     LEFT JOIN categories pc ON c.parent_id = pc.id
      WHERE p.id = $1`,
     [id]
   );
@@ -85,9 +114,10 @@ export async function findProductById(id: number): Promise<ProductWithVariants |
 
 export async function findProductBySlug(slug: string): Promise<ProductWithVariants | null> {
   const result = await query(
-    `SELECT p.*, c.name as category_name
+    `SELECT p.*, ${CATEGORY_COLUMNS}
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.id
+     LEFT JOIN categories pc ON c.parent_id = pc.id
      WHERE p.slug = $1`,
     [slug]
   );
@@ -109,10 +139,12 @@ export async function createProduct(data: {
   base_price: number;
   discount_price?: number | null;
   images?: string[];
+  specifications?: ProductSpecification[];
+  highlights?: string[];
 }): Promise<Product> {
   const result = await query(
-    `INSERT INTO products (category_id, name, slug, description, base_price, discount_price, images)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+    `INSERT INTO products (category_id, name, slug, description, base_price, discount_price, images, specifications, highlights)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb)
      RETURNING *`,
     [
       data.category_id || null,
@@ -122,6 +154,8 @@ export async function createProduct(data: {
       data.base_price,
       data.discount_price ?? null,
       JSON.stringify(data.images || []), // Ab ::jsonb ki waja se jsonb ban kar insert hoga
+      JSON.stringify(data.specifications || []),
+      JSON.stringify(data.highlights || []),
     ]
   );
   return result.rows[0];
@@ -136,6 +170,8 @@ export async function updateProduct(
     base_price?: number;
     discount_price?: number | null;
     images?: string[];
+    specifications?: ProductSpecification[];
+    highlights?: string[];
     is_active?: boolean;
   }
 ): Promise<Product | null> {
@@ -152,8 +188,10 @@ export async function updateProduct(
          discount_price = CASE WHEN $6 THEN $7 ELSE discount_price END,
          images = COALESCE($8::jsonb, images),
          is_active = COALESCE($9, is_active),
+         specifications = COALESCE($10::jsonb, specifications),
+         highlights = COALESCE($11::jsonb, highlights),
          updated_at = NOW()
-     WHERE id = $10
+     WHERE id = $12
      RETURNING *`,
     [
       data.category_id ?? null,
@@ -165,6 +203,8 @@ export async function updateProduct(
       discountPriceParam,
       data.images ? JSON.stringify(data.images) : null,
       data.is_active ?? null,
+      data.specifications ? JSON.stringify(data.specifications) : null,
+      data.highlights ? JSON.stringify(data.highlights) : null,
       id,
     ]
   );

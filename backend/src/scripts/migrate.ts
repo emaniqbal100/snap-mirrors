@@ -41,6 +41,11 @@ CREATE TABLE IF NOT EXISTS categories (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Sub-categories: a category with parent_id = NULL is a main category,
+-- otherwise it is a sub-category of that parent (2 levels max, enforced in the API).
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES categories(id) ON DELETE RESTRICT;
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+
 -- ============================================
 -- PRODUCTS
 -- ============================================
@@ -56,6 +61,13 @@ CREATE TABLE IF NOT EXISTS products (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
+
+ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_price NUMERIC(10, 2);
+-- Structured product details shown under the price:
+--   specifications: [{ "label": "Fabric", "value": "Cambric Cotton" }, ...]
+--   highlights:     ["Breathable and lightweight feel", ...]  ("Why you'll love it")
+ALTER TABLE products ADD COLUMN IF NOT EXISTS specifications JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS highlights JSONB NOT NULL DEFAULT '[]';
 
 -- ============================================
 -- PRODUCT VARIANTS (size, color, stock, price override)
@@ -186,6 +198,7 @@ ALTER TABLE orders ADD CONSTRAINT orders_payment_method_check
 -- INDEXES
 -- ============================================
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id);
 CREATE INDEX IF NOT EXISTS idx_variants_product ON product_variants(product_id);
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);

@@ -10,9 +10,11 @@ import {
   deleteProduct as deleteProductModel,
   createVariant,
   deleteVariantsByProductId,
+  ProductSpecification,
 } from '../models/Product.js';
 import { findCategoryBySlug, getCategoryAndDescendantIds } from '../models/Category.js';
 import { slugify } from '../utils/helpers.js';
+import { sanitizeDescription, MAX_DESCRIPTION_LENGTH } from '../utils/sanitizeHtml.js';
 import {
   sendSuccess,
   sendValidationError,
@@ -90,6 +92,54 @@ function parseDiscountPrice(value: unknown): number | null | undefined {
   return Number.isFinite(num) ? num : null;
 }
 
+// Reads a field that arrives either as an array (JSON body) or as a JSON string (multipart form).
+// Returns undefined when the field was not sent, so updates leave it untouched.
+function readJsonField(value: unknown): unknown {
+  if (value === undefined) return undefined;
+  if (typeof value === 'string') {
+    if (value.trim() === '') return [];
+    return JSON.parse(value); // throws on malformed JSON, caught by the callers below
+  }
+  return value;
+}
+
+// specifications: [{ label, value }]  e.g. { label: "Fabric", value: "Cambric Cotton" }
+// Empty rows are dropped; text is trimmed and length-limited.
+function parseSpecifications(value: unknown): ProductSpecification[] | undefined | 'invalid' {
+  let raw: unknown;
+  try {
+    raw = readJsonField(value);
+  } catch {
+    return 'invalid';
+  }
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw) || raw.length > 20) return 'invalid';
+  const result: ProductSpecification[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') return 'invalid';
+    const label = String((item as any).label ?? '').trim().slice(0, 60);
+    const val = String((item as any).value ?? '').trim().slice(0, 300);
+    if (label && val) result.push({ label, value: val });
+  }
+  return result;
+}
+
+// highlights: ["Breathable and lightweight feel", ...]
+function parseHighlights(value: unknown): string[] | undefined | 'invalid' {
+  let raw: unknown;
+  try {
+    raw = readJsonField(value);
+  } catch {
+    return 'invalid';
+  }
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw) || raw.length > 12) return 'invalid';
+  return raw
+    .filter((h): h is string => typeof h === 'string')
+    .map((h) => h.trim().slice(0, 200))
+    .filter((h) => h !== '');
+}
+
 // NEW: combine any image URLs the admin typed manually (sent as a JSON string
 // in the "images" field) with any newly uploaded files (sent as multipart
 // files under the "newImages" field, up to 6 — see uploadMultipleImages).
@@ -127,19 +177,38 @@ async function resolveImages(req: Request): Promise<string[] | undefined> {
 }
 
 // POST /api/admin/products
-// body: { name, description, base_price, discount_price, category_id, images (JSON string of URLs), variants }
+// body: { name, description, base_price, discount_price, category_id, images (JSON string of URLs),
+//         specifications ([{label,value}] or JSON string), highlights (string[] or JSON string), variants }
 // files: newImages (multipart/form-data, up to 6, optional)
 export async function createProduct(req: Request, res: Response) {
   try {
-    const { name, description, base_price, discount_price, category_id, variants } = req.body;
+    const { name, base_price, discount_price, category_id, variants } = req.body;
 
     if (!name || base_price === undefined) {
       return sendValidationError(res, 'Name and base_price are required');
     }
 
+    if (req.body.description !== undefined && typeof req.body.description !== 'string') {
+      return sendValidationError(res, 'description must be text');
+    }
+    if (typeof req.body.description === 'string' && req.body.description.length > MAX_DESCRIPTION_LENGTH) {
+      return sendValidationError(res, 'description is too long');
+    }
+    const description =
+      typeof req.body.description === 'string' ? sanitizeDescription(req.body.description) : undefined;
+
     const parsedDiscount = parseDiscountPrice(discount_price);
     if (parsedDiscount !== null && parsedDiscount !== undefined && parsedDiscount >= Number(base_price)) {
       return sendValidationError(res, 'Discount price must be lower than base price');
+    }
+
+    const specifications = parseSpecifications(req.body.specifications);
+    const highlights = parseHighlights(req.body.highlights);
+    if (specifications === 'invalid') {
+      return sendValidationError(res, 'specifications must be a list of { label, value } (max 20)');
+    }
+    if (highlights === 'invalid') {
+      return sendValidationError(res, 'highlights must be a list of text lines (max 12)');
     }
 
     const images = await resolveImages(req);
@@ -154,6 +223,8 @@ export async function createProduct(req: Request, res: Response) {
       discount_price: parsedDiscount ?? null,
       category_id,
       images,
+      specifications,
+      highlights,
     });
 
     const createdVariants = [];
@@ -196,12 +267,21 @@ export async function updateProduct(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const productId = parseInt(id, 10);
-    const { name, description, base_price, discount_price, category_id, is_active, variants } = req.body;
+    const { name, base_price, discount_price, category_id, is_active, variants } = req.body;
 
     const existing = await findProductById(productId);
     if (!existing) {
       return sendNotFound(res, 'Product not found');
     }
+
+    if (req.body.description !== undefined && typeof req.body.description !== 'string') {
+      return sendValidationError(res, 'description must be text');
+    }
+    if (typeof req.body.description === 'string' && req.body.description.length > MAX_DESCRIPTION_LENGTH) {
+      return sendValidationError(res, 'description is too long');
+    }
+    const description =
+      typeof req.body.description === 'string' ? sanitizeDescription(req.body.description) : undefined;
 
     const slug = name ? slugify(name) : undefined;
 
@@ -209,6 +289,15 @@ export async function updateProduct(req: Request, res: Response) {
     const effectiveBasePrice = base_price !== undefined ? Number(base_price) : Number(existing.base_price);
     if (parsedDiscount !== null && parsedDiscount !== undefined && parsedDiscount >= effectiveBasePrice) {
       return sendValidationError(res, 'Discount price must be lower than base price');
+    }
+
+    const specifications = parseSpecifications(req.body.specifications);
+    const highlights = parseHighlights(req.body.highlights);
+    if (specifications === 'invalid') {
+      return sendValidationError(res, 'specifications must be a list of { label, value } (max 20)');
+    }
+    if (highlights === 'invalid') {
+      return sendValidationError(res, 'highlights must be a list of text lines (max 12)');
     }
 
     const images = await resolveImages(req);
@@ -221,6 +310,8 @@ export async function updateProduct(req: Request, res: Response) {
       discount_price: parsedDiscount,
       category_id,
       images,
+      specifications,
+      highlights,
       is_active,
     });
 
