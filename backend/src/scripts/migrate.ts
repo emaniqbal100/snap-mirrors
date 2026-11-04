@@ -195,6 +195,13 @@ ALTER TABLE orders ADD CONSTRAINT orders_payment_method_check
   CHECK (payment_method IN ('online', 'cod', 'jazzcash', 'easypaisa', 'bank_transfer'));
 
 -- ============================================
+-- CATEGORY HIERARCHY (parent/child + ordering)
+-- ============================================
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES categories(id) ON DELETE SET NULL;
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id);
+
+-- ============================================
 -- INDEXES
 -- ============================================
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);

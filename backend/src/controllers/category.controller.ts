@@ -9,6 +9,16 @@ import {
   updateCategory as updateCategoryModel,
   deleteCategory as deleteCategoryModel,
 } from '../models/Category.js';
+
+async function getCategoryDepth(categoryId: number): Promise<number> {
+  let depth = 0;
+  let current = await findCategoryById(categoryId);
+  while (current && current.parent_id !== null) {
+    depth++;
+    current = await findCategoryById(current.parent_id);
+  }
+  return depth;
+}
 import { slugify } from '../utils/helpers.js';
 import {
   sendSuccess,
@@ -77,8 +87,9 @@ export async function createCategory(req: Request, res: Response) {
     if (parentId) {
       const parent = await findCategoryById(parentId);
       if (!parent) return sendValidationError(res, 'Parent category not found');
-      if (parent.parent_id !== null) {
-        return sendValidationError(res, 'Sub-categories can only be added under a main category');
+      const parentDepth = await getCategoryDepth(parentId);
+      if (parentDepth >= 2) {
+        return sendValidationError(res, 'Categories can be nested up to 3 levels deep');
       }
     }
 
@@ -125,15 +136,9 @@ export async function updateCategory(req: Request, res: Response) {
       }
       const parent = await findCategoryById(parentId);
       if (!parent) return sendValidationError(res, 'Parent category not found');
-      if (parent.parent_id !== null) {
-        return sendValidationError(res, 'Sub-categories can only be added under a main category');
-      }
-      const children = await findChildCategories(id);
-      if (children.length > 0) {
-        return sendValidationError(
-          res,
-          'This category has sub-categories, so it cannot become a sub-category itself'
-        );
+      const parentDepth = await getCategoryDepth(parentId);
+      if (parentDepth >= 2) {
+        return sendValidationError(res, 'Categories can be nested up to 3 levels deep');
       }
     }
 

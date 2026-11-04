@@ -30,13 +30,20 @@ export async function findAllCategories(): Promise<Category[]> {
   return result.rows;
 }
 
-// Nested list: main categories, each with its sub-categories in `children`.
+// Nested list: main categories, each with its sub-categories in `children` (supports 3 levels).
 export async function findCategoryTree(): Promise<CategoryNode[]> {
   const all = await findAllCategories();
+
+  function buildChildren(parentId: number): Category[] {
+    return all
+      .filter((c) => c.parent_id === parentId)
+      .map((c) => ({ ...c, children: buildChildren(c.id) } as any));
+  }
+
   const mains = all.filter((c) => c.parent_id === null);
   return mains.map((m) => ({
     ...m,
-    children: all.filter((c) => c.parent_id === m.id),
+    children: buildChildren(m.id),
   }));
 }
 
@@ -58,11 +65,15 @@ export async function findChildCategories(parentId: number): Promise<Category[]>
   return result.rows;
 }
 
-// The category's own id plus the ids of all its sub-categories
-// (used so that filtering by a main category also returns its sub-category products).
+// The category's own id plus the ids of all its descendants (up to 3 levels).
 export async function getCategoryAndDescendantIds(id: number): Promise<number[]> {
   const result = await query(
-    'SELECT id FROM categories WHERE id = $1 OR parent_id = $1',
+    `WITH RECURSIVE tree AS (
+       SELECT id FROM categories WHERE id = $1
+       UNION ALL
+       SELECT c.id FROM categories c INNER JOIN tree t ON c.parent_id = t.id
+     )
+     SELECT id FROM tree`,
     [id]
   );
   return result.rows.map((r: { id: number }) => r.id);

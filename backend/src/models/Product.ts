@@ -12,11 +12,15 @@ export interface Product {
   slug: string;
   description: string | null;
   base_price: number;
-  discount_price: number | null; // NEW
+  discount_price: number | null;
   images: string[];
   specifications: ProductSpecification[];
   highlights: string[];
   is_active: boolean;
+  is_new_arrival: boolean;
+  is_shop_now: boolean;
+  is_shop_collection: boolean;
+  sort_order: number;
   created_at: Date;
   updated_at: Date;
 }
@@ -27,6 +31,7 @@ export interface ProductVariant {
   sku: string | null;
   size: string | null;
   color: string | null;
+  color_name: string | null;
   price: number | null;
   stock_quantity: number;
   created_at: Date;
@@ -43,8 +48,6 @@ export interface ProductWithVariants extends Product {
 
 // ============ PRODUCTS ============
 
-// category_name / category_slug describe the category the product is filed under (this can be a
-// sub-category). When it is a sub-category, parent_category_* describe its main category.
 const CATEGORY_COLUMNS = `c.name AS category_name, c.slug AS category_slug,
        c.parent_id AS category_parent_id,
        pc.name AS parent_category_name, pc.slug AS parent_category_slug`;
@@ -56,18 +59,19 @@ export async function findAllProducts(
   const conditions: string[] = [];
   const params: unknown[] = [];
   if (activeOnly) conditions.push('p.is_active = true');
-  if (categoryIds) {
+  if (categoryIds && categoryIds.length > 0) {
     params.push(categoryIds);
     conditions.push(`p.category_id = ANY($${params.length}::int[])`);
   }
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
   const result = await query(
     `SELECT p.*, ${CATEGORY_COLUMNS}
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.id
      LEFT JOIN categories pc ON c.parent_id = pc.id
      ${whereClause}
-     ORDER BY p.created_at DESC`,
+     ORDER BY p.sort_order ASC, p.created_at DESC`,
     params
   );
 
@@ -141,10 +145,14 @@ export async function createProduct(data: {
   images?: string[];
   specifications?: ProductSpecification[];
   highlights?: string[];
+  is_new_arrival?: boolean;
+  is_shop_now?: boolean;
+  is_shop_collection?: boolean;
+  sort_order?: number;
 }): Promise<Product> {
   const result = await query(
-    `INSERT INTO products (category_id, name, slug, description, base_price, discount_price, images, specifications, highlights)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb)
+    `INSERT INTO products (category_id, name, slug, description, base_price, discount_price, images, specifications, highlights, is_new_arrival, is_shop_now, is_shop_collection, sort_order)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10, $11, $12, $13)
      RETURNING *`,
     [
       data.category_id || null,
@@ -153,13 +161,18 @@ export async function createProduct(data: {
       data.description || null,
       data.base_price,
       data.discount_price ?? null,
-      JSON.stringify(data.images || []), // Ab ::jsonb ki waja se jsonb ban kar insert hoga
+      JSON.stringify(data.images || []),
       JSON.stringify(data.specifications || []),
       JSON.stringify(data.highlights || []),
+      data.is_new_arrival ?? false,
+      data.is_shop_now ?? false,
+      data.is_shop_collection ?? false,
+      data.sort_order ?? 0,
     ]
   );
   return result.rows[0];
 }
+
 export async function updateProduct(
   id: number,
   data: {
@@ -173,6 +186,10 @@ export async function updateProduct(
     specifications?: ProductSpecification[];
     highlights?: string[];
     is_active?: boolean;
+    is_new_arrival?: boolean;
+    is_shop_now?: boolean;
+    is_shop_collection?: boolean;
+    sort_order?: number;
   }
 ): Promise<Product | null> {
   const discountPriceParam = data.discount_price === undefined ? null : data.discount_price;
@@ -190,8 +207,12 @@ export async function updateProduct(
          is_active = COALESCE($9, is_active),
          specifications = COALESCE($10::jsonb, specifications),
          highlights = COALESCE($11::jsonb, highlights),
+         is_new_arrival = COALESCE($12, is_new_arrival),
+         is_shop_now = COALESCE($13, is_shop_now),
+         is_shop_collection = COALESCE($14, is_shop_collection),
+         sort_order = COALESCE($15, sort_order),
          updated_at = NOW()
-     WHERE id = $12
+     WHERE id = $16
      RETURNING *`,
     [
       data.category_id ?? null,
@@ -205,10 +226,18 @@ export async function updateProduct(
       data.is_active ?? null,
       data.specifications ? JSON.stringify(data.specifications) : null,
       data.highlights ? JSON.stringify(data.highlights) : null,
+      data.is_new_arrival ?? null,
+      data.is_shop_now ?? null,
+      data.is_shop_collection ?? null,
+      data.sort_order ?? null,
       id,
     ]
   );
   return result.rows[0] || null;
+}
+
+export async function updateProductSortOrder(id: number, sortOrder: number): Promise<void> {
+  await query('UPDATE products SET sort_order = $1, updated_at = NOW() WHERE id = $2', [sortOrder, id]);
 }
 
 export async function deleteProduct(id: number): Promise<boolean> {
@@ -223,18 +252,20 @@ export async function createVariant(data: {
   sku?: string;
   size?: string;
   color?: string;
+  color_name?: string;
   price?: number;
   stock_quantity: number;
 }): Promise<ProductVariant> {
   const result = await query(
-    `INSERT INTO product_variants (product_id, sku, size, color, price, stock_quantity)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO product_variants (product_id, sku, size, color, color_name, price, stock_quantity)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
     [
       data.product_id,
       data.sku || null,
       data.size || null,
       data.color || null,
+      data.color_name || null,
       data.price || null,
       data.stock_quantity,
     ]
@@ -244,21 +275,23 @@ export async function createVariant(data: {
 
 export async function updateVariant(
   id: number,
-  data: { sku?: string; size?: string; color?: string; price?: number; stock_quantity?: number }
+  data: { sku?: string; size?: string; color?: string; color_name?: string; price?: number; stock_quantity?: number }
 ): Promise<ProductVariant | null> {
   const result = await query(
     `UPDATE product_variants
      SET sku = COALESCE($1, sku),
          size = COALESCE($2, size),
          color = COALESCE($3, color),
-         price = COALESCE($4, price),
-         stock_quantity = COALESCE($5, stock_quantity)
-     WHERE id = $6
+         color_name = COALESCE($4, color_name),
+         price = COALESCE($5, price),
+         stock_quantity = COALESCE($6, stock_quantity)
+     WHERE id = $7
      RETURNING *`,
     [
       data.sku ?? null,
       data.size ?? null,
       data.color ?? null,
+      data.color_name ?? null,
       data.price ?? null,
       data.stock_quantity ?? null,
       id,
@@ -282,6 +315,7 @@ export default {
   findProductBySlug,
   createProduct,
   updateProduct,
+  updateProductSortOrder,
   deleteProduct,
   createVariant,
   updateVariant,

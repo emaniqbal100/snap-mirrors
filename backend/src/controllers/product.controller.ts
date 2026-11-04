@@ -7,6 +7,7 @@ import {
   findProductBySlug,
   createProduct as createProductModel,
   updateProduct as updateProductModel,
+  updateProductSortOrder,
   deleteProduct as deleteProductModel,
   createVariant,
   deleteVariantsByProductId,
@@ -92,19 +93,25 @@ function parseDiscountPrice(value: unknown): number | null | undefined {
   return Number.isFinite(num) ? num : null;
 }
 
+function parseBool(value: unknown): boolean | undefined {
+  if (value === undefined) return undefined;
+  if (value === 'true' || value === true) return true;
+  if (value === 'false' || value === false) return false;
+  return undefined;
+}
+
 // Reads a field that arrives either as an array (JSON body) or as a JSON string (multipart form).
 // Returns undefined when the field was not sent, so updates leave it untouched.
 function readJsonField(value: unknown): unknown {
   if (value === undefined) return undefined;
   if (typeof value === 'string') {
     if (value.trim() === '') return [];
-    return JSON.parse(value); // throws on malformed JSON, caught by the callers below
+    return JSON.parse(value);
   }
   return value;
 }
 
 // specifications: [{ label, value }]  e.g. { label: "Fabric", value: "Cambric Cotton" }
-// Empty rows are dropped; text is trimmed and length-limited.
 function parseSpecifications(value: unknown): ProductSpecification[] | undefined | 'invalid' {
   let raw: unknown;
   try {
@@ -140,9 +147,6 @@ function parseHighlights(value: unknown): string[] | undefined | 'invalid' {
     .filter((h) => h !== '');
 }
 
-// NEW: combine any image URLs the admin typed manually (sent as a JSON string
-// in the "images" field) with any newly uploaded files (sent as multipart
-// files under the "newImages" field, up to 6 — see uploadMultipleImages).
 async function resolveImages(req: Request): Promise<string[] | undefined> {
   let urlImages: string[] = [];
 
@@ -151,7 +155,7 @@ async function resolveImages(req: Request): Promise<string[] | undefined> {
       const parsed = JSON.parse(req.body.images);
       if (Array.isArray(parsed)) urlImages = parsed.filter((u) => typeof u === 'string' && u.trim());
     } catch {
-      // ignore malformed JSON — treat as no URL images
+      // ignore malformed JSON
     }
   } else if (Array.isArray(req.body.images)) {
     urlImages = req.body.images.filter((u: unknown) => typeof u === 'string' && (u as string).trim());
@@ -168,8 +172,6 @@ async function resolveImages(req: Request): Promise<string[] | undefined> {
 
   const combined = [...urlImages, ...uploadedUrls];
 
-  // undefined means "don't touch existing images" (relevant for updates when
-  // the admin didn't change anything about the images section at all).
   if (combined.length === 0 && urlImages.length === 0 && uploadedUrls.length === 0 && req.body.images === undefined) {
     return undefined;
   }
@@ -177,12 +179,10 @@ async function resolveImages(req: Request): Promise<string[] | undefined> {
 }
 
 // POST /api/admin/products
-// body: { name, description, base_price, discount_price, category_id, images (JSON string of URLs),
-//         specifications ([{label,value}] or JSON string), highlights (string[] or JSON string), variants }
-// files: newImages (multipart/form-data, up to 6, optional)
 export async function createProduct(req: Request, res: Response) {
   try {
-    const { name, base_price, discount_price, category_id, variants } = req.body;
+    const { name, base_price, discount_price, category_id, variants,
+            is_new_arrival, is_shop_now, is_shop_collection, sort_order } = req.body;
 
     if (!name || base_price === undefined) {
       return sendValidationError(res, 'Name and base_price are required');
@@ -225,6 +225,10 @@ export async function createProduct(req: Request, res: Response) {
       images,
       specifications,
       highlights,
+      is_new_arrival: parseBool(is_new_arrival) ?? false,
+      is_shop_now: parseBool(is_shop_now) ?? false,
+      is_shop_collection: parseBool(is_shop_collection) ?? false,
+      sort_order: sort_order !== undefined ? Number(sort_order) || 0 : 0,
     });
 
     const createdVariants = [];
@@ -244,6 +248,7 @@ export async function createProduct(req: Request, res: Response) {
           sku: v.sku,
           size: v.size,
           color: v.color,
+          color_name: v.color_name,
           price: v.price,
           stock_quantity: v.stock_quantity ?? 0,
         });
@@ -267,7 +272,8 @@ export async function updateProduct(req: Request, res: Response) {
   try {
     const { id } = req.params;
     const productId = parseInt(id, 10);
-    const { name, base_price, discount_price, category_id, is_active, variants } = req.body;
+    const { name, base_price, discount_price, category_id, is_active, variants,
+            is_new_arrival, is_shop_now, is_shop_collection, sort_order } = req.body;
 
     const existing = await findProductById(productId);
     if (!existing) {
@@ -312,7 +318,11 @@ export async function updateProduct(req: Request, res: Response) {
       images,
       specifications,
       highlights,
-      is_active,
+      is_active: parseBool(is_active),
+      is_new_arrival: parseBool(is_new_arrival),
+      is_shop_now: parseBool(is_shop_now),
+      is_shop_collection: parseBool(is_shop_collection),
+      sort_order: sort_order !== undefined ? Number(sort_order) || 0 : undefined,
     });
 
     let parsedVariants = variants;
@@ -332,6 +342,7 @@ export async function updateProduct(req: Request, res: Response) {
           sku: v.sku,
           size: v.size,
           color: v.color,
+          color_name: v.color_name,
           price: v.price,
           stock_quantity: v.stock_quantity ?? 0,
         });
@@ -342,6 +353,25 @@ export async function updateProduct(req: Request, res: Response) {
     return sendSuccess(res, result, 'Product updated successfully');
   } catch (error) {
     return sendServerError(res, 'Failed to update product', error);
+  }
+}
+
+// PATCH /api/admin/products/reorder
+export async function reorderProducts(req: Request, res: Response) {
+  try {
+    const { orders } = req.body;
+    if (!Array.isArray(orders)) {
+      return sendValidationError(res, 'orders must be an array of { id, sort_order }');
+    }
+    for (const item of orders) {
+      if (typeof item.id !== 'number' || typeof item.sort_order !== 'number') {
+        return sendValidationError(res, 'Each order entry must have numeric id and sort_order');
+      }
+      await updateProductSortOrder(item.id, item.sort_order);
+    }
+    return sendSuccess(res, null, 'Products reordered successfully');
+  } catch (error) {
+    return sendServerError(res, 'Failed to reorder products', error);
   }
 }
 
@@ -369,5 +399,6 @@ export default {
   getProductById,
   createProduct,
   updateProduct,
+  reorderProducts,
   deleteProduct,
 };
