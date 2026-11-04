@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 
 // Load environment variables
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '.env' });
 
 export const config = {
   // Server
@@ -24,7 +24,7 @@ export const config = {
   JWT_REFRESH_EXPIRE_IN: process.env.JWT_REFRESH_EXPIRE_IN || '30d',
 
   // CORS
-  CORS_ORIGIN: (process.env.CORS_ORIGIN || 'http://localhost:3000')
+  CORS_ORIGIN: (process.env.CORS_ORIGIN || 'http://localhost:8080')
     .split(',')
     .map((origin) => origin.trim()),
   CORS_CREDENTIALS: process.env.CORS_CREDENTIALS === 'true',
@@ -89,7 +89,7 @@ export const config = {
   LOG_FILE: process.env.LOG_FILE || 'logs/app.log',
 
   // API URLs
-  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
+  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:8080',
   ADMIN_URL: process.env.ADMIN_URL || 'http://localhost:3001',
 
   // Social Media

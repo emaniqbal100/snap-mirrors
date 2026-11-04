@@ -11,6 +11,7 @@ import {
   getProductById,
   createProduct,
   updateProduct,
+  reorderProducts,
   deleteProduct,
 } from '../controllers/product.controller.js';
 import {
@@ -53,9 +54,8 @@ router.delete('/categories/:id', deleteCategory);
 // Products
 router.get('/products', listProductsAdmin);
 router.get('/products/:id', getProductById);
-// NEW: uploadMultipleImages accepts up to 6 files under the field name "newImages"
-// (previously upload.single('image') only accepted one file under "image").
 router.post('/products', uploadMultipleImages, createProduct);
+router.patch('/products/reorder', reorderProducts);
 router.patch('/products/:id', uploadMultipleImages, updateProduct);
 router.delete('/products/:id', deleteProduct);
 
